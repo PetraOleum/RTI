@@ -30,7 +30,7 @@ def rti():
 def ttSearch():
     ra = request.args
     if "stopnum" in ra:
-        return redirect("/stop/{}".format(ra["stopnum"]), 302, None)
+        return redirect("/stop/{}/".format(ra["stopnum"]), 302, None)
     else:
         return redirect("/", 302, None)
 
