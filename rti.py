@@ -17,16 +17,6 @@ class TimeTable(Table):
     status = Col("Status")
 
 
-class Item(object):
-    def __init__(self, route, dest, sched, est):
-        self.route = route
-        self.dest = dest
-        self.sched = sched
-        self.est = est
-        self.status = status
-
-
-
 app = Flask(__name__)
 
 stopurl = "https://www.metlink.org.nz/api/v1/StopDepartures/"
