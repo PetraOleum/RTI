@@ -15,6 +15,7 @@ class TimeTable(Table):
     sched = Col("Sched")
     est = Col("Est")
     status = Col("Status")
+    table_id = "stoptimetable"
 
 
 app = Flask(__name__)
@@ -37,7 +38,8 @@ def ttSearch():
 def timetable(stop):
     req = requests.get("{}{}".format(stopurl, stop))
     if req.status_code != 200:
-        return "Error {}".format(req.status_code)
+        # return "Error {}".format(req.status_code)
+        return render_template("nostop.html", error = req.status_code)
     # return req.json()
     rv = req.json()
     lastup = datetime.fromisoformat(rv["LastModified"])

@@ -1,17 +1,15 @@
-<title>{{ stopnumber }} {{ stopname }} - Timetable - RTI Anywhere</title>
+<title>RTI Anywhere</title>
 
 <link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
 
 <body>
 
-    <h1 class="stopinfo">Stop {{ stopnumber }}: {{ stopname }}</h1>
+    <h1>Unofficial Metlink Wellington Real Time Anywhere</h1>
 
-    <p class="lastupdated">Last updated at {{ lup }}<p>
-
-{{ table }}
+    <p class="explainer">Either no such stop exists, or some other error has occured. Error code {{ error }}.</p>
 
 <form id="stopform" action="/stop/">
-    Bus stop number: <input type="number" id="stopnumber" name="stopnum" value="{{ stopnumber }}"> <input type="submit" id="stopsubmit" value="Submit">
+    Bus stop number: <input type="number" id="stopnumber" name="stopnum"> <input type="submit" id="stopsubmit" value="Submit">
 </form>
 
 <div id="info">
@@ -19,3 +17,5 @@
 </div>
 
 </body>
+
+

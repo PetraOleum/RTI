@@ -1,0 +1,75 @@
+body {
+    font-family: helvetica,sans,serif
+}
+
+
+h1 {
+    font-size: 1.1em;
+    text-align: center;
+    margin: 0;
+}
+
+.lastupdated {
+    font-style: italic;
+    text-align: center;
+    margin: 1;
+}
+
+#stoptimetable {
+    margin-left: auto;
+    margin-right: auto;
+    border-collapse: collapse;
+}
+
+#stopform {
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#stopnumber {
+    max-width: 6em;
+}
+
+#stopsubmit {
+    float: right;
+}
+
+#stoptimetable th {
+    text-align: center;
+}
+
+#stoptimetable th, #stoptimetable td {
+    border: 1px solid #ccc;
+    padding: 15px 5px 10px 5px;
+}
+
+#stoptimetable tr:nth-child(even){
+    background-color: #f0f0f0;
+}
+
+#stoptimetable thead {
+    background-color: #dddddd;
+}
+
+#stopform {
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+    padding: 15px;
+}
+
+#info p{
+    text-align: center;
+    max-width: 500px;
+    padding: 15px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.explainer {
+    text-align: center;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+    font-style: italic;
+}
