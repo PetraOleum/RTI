@@ -55,7 +55,7 @@ def timetable(stop):
     tTable = TimeTable(ttdat)
     return render_template("stop.html", stopnumber = stop,
                            stopname = rv["Stop"]["Name"],
-                           lup = lastup.strftime("%H:%M:%S, %A %B %-d %Y"),
+                           lup = lastup.strftime("%H:%M:%S, %A %B %-d"),
                           table = tTable)
 
 if __name__ == "__main__":
