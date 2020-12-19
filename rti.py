@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect
 from flask_table import Table, Col
 from datetime import datetime
 import requests
@@ -23,7 +23,15 @@ stopurl = "https://www.metlink.org.nz/api/v1/StopDepartures/"
 
 @app.route("/")
 def rti():
-    return "Hello world!"
+    return render_template("main.html")
+
+@app.route("/stop/")
+def ttSearch():
+    ra = request.args
+    if "stopnum" in ra:
+        return redirect("/stop/{}".format(ra["stopnum"]), 302, None)
+    else:
+        return redirect("/", 302, None)
 
 @app.route("/stop/<string:stop>/")
 def timetable(stop):

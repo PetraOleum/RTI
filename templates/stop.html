@@ -2,10 +2,14 @@
 
 <body>
 
-    <p>Stop {{ stopnumber }}: {{ stopname }}</p>
+    <h1 class="stopinfo">Stop {{ stopnumber }}: {{ stopname }}</h1>
 
-    <p>Last updated at {{ lup }}<p>
+    <p class="lastupdated">Last updated at {{ lup }}<p>
 
 {{ table }}
+
+<form id="stopform" action="/stop/">
+    Bus stop number: <input type="number" id="stopnumber" name="stopnum" value="{{ stopnumber }}"> <input type="submit" id="stopsubmit" value="Submit">
+</form>
 
 </body>
