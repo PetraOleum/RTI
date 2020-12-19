@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect
 from flask_table import Table, Col
 from datetime import datetime
+from dateutil.parser import isoparse
 import requests
 
 depStatus = {
@@ -42,11 +43,11 @@ def timetable(stop):
         return render_template("nostop.html", error = req.status_code)
     # return req.json()
     rv = req.json()
-    lastup = datetime.fromisoformat(rv["LastModified"])
+    lastup = isoparse(rv["LastModified"])
     ttdat = [{"route" : s["ServiceID"], "dest" : s["DestinationStopName"],
               "sched" :
-              datetime.fromisoformat(s["AimedDeparture"]).strftime("%H:%M"),
-              "est" : "" if s["ExpectedDeparture"] is None else "{} mins".format((datetime.fromisoformat(s["ExpectedDeparture"]) -
+              isoparse(s["AimedDeparture"]).strftime("%H:%M"),
+              "est" : "" if s["ExpectedDeparture"] is None else "{} mins".format((isoparse(s["ExpectedDeparture"]) -
                        lastup).seconds // 60),
               "status" : depStatus[s["DepartureStatus"]] if
               s["DepartureStatus"] in depStatus else s["DepartureStatus"]}
