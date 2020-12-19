@@ -10,11 +10,11 @@
     <p class="explainer">Either no such stop exists, or some other error has occured. Error code {{ error }}.</p>
 
 <form id="stopform" action="/stop/">
-    Bus stop number: <input type="number" id="stopnumber" name="stopnum"> <input type="submit" id="stopsubmit" value="Submit">
+    Bus stop number: <input type="number" id="stopnumber" name="stopnum" max="9999" min="0"> <input type="submit" id="stopsubmit" value="Submit">
 </form>
 
 <div id="info">
-    <p><a href="/">Home</a> - Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster</em></p>
+    <p><a href="/">Home</a> - Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
 </div>
 
 </body>
