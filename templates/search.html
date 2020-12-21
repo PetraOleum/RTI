@@ -1,0 +1,24 @@
+<title>{{ searchstring }} - Stop Search - RTI Anywhere</title>
+
+<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}"  type="image/svg">
+<link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<body>
+
+    <h1 class="stopinfo">Search: "{{ searchstring }}"</h1>
+
+    <p class="numresults">Results: {{ numres }}<p>
+
+{{ table }}
+
+<form id="searchform" action="/search/">
+    Search for stop: <input type="text" id="searchquery" name="q" value="{{ searchstring }}"> <input type="submit" id="searchsubmit" value="Search">
+</form>
+
+<div id="info">
+    <p><a href="/">Home</a> - Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
+</div>
+
+</body>
+

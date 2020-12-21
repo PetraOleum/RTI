@@ -9,54 +9,56 @@ h1 {
     margin: 0;
 }
 
-.lastupdated {
+.lastupdated, .numresults {
     font-style: italic;
     text-align: center;
     margin: 1;
 }
 
-#stoptimetable {
+#stoptimetable, #searchtable {
     margin-left: auto;
     margin-right: auto;
     border-collapse: collapse;
 }
 
-#stopform {
+#stopform, #searchform {
     max-width: 400px;
     margin-left: auto;
     margin-right: auto;
     font-size: 1em;
+    border-bottom: 1px solid black;
+    border-top: 1px solid black;
+    padding: 15px;
+    background-color: #fafafa;
 }
 
 #stopnumber {
     max-width: 6em;
 }
 
-#stopsubmit {
+#searchquery {
+    max-width: 12em;
+}
+
+#stopsubmit, #searchsubmit {
     float: right;
 }
 
-#stoptimetable th {
+#stoptimetable th, #searchtable th {
     text-align: center;
 }
 
-#stoptimetable th, #stoptimetable td {
+#stoptimetable th, #stoptimetable td, #searchtable th, #searchtable td{
     border: 1px solid #ccc;
     padding: 15px 5px 10px 5px;
 }
 
-#stoptimetable tr:nth-child(even){
+#stoptimetable tr:nth-child(even), #searchtable tr:nth-child(even){
     background-color: #f0f0f0;
 }
 
-#stoptimetable thead {
+#stoptimetable thead, #searchtable thead{
     background-color: #dddddd;
-}
-
-#stopform {
-    border-top: 1px solid black;
-    border-bottom: 1px solid black;
-    padding: 15px;
 }
 
 #info p{
