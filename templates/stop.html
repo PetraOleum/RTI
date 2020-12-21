@@ -13,7 +13,11 @@
 {{ table }}
 
 <form id="stopform" action="/stop/">
-    Bus stop number: <input type="number" id="stopnumber" name="stopnum" value="{{ stopnumber }}" max="9999" min="0"> <input type="submit" id="stopsubmit" value="Submit">
+    <div class="fmain">
+        <div class="fcol">Bus stop number:</div>
+        <div class="fcol"><input type="number" id="stopnumber" name="stopnum" value="{{ stopnumber }}" max="9999" min="0"></div>
+        <div class="fcol"><input type="submit" id="stopsubmit" value="Submit"></div>
+    </div>
 </form>
 
 <div id="info">

@@ -13,11 +13,19 @@
     <p class="explainer">Stop numbers are four-digit numbers that can be found on bus stop signs. For example Courntey Place Stop A (westbound) is stop number <a href="/stop/5000/">5000</a>, while stop C (opposite) is stop number <a href="/stop/5516/">5516</a>.</p>
 
 <form id="stopform" action="/stop/">
-    Bus stop number: <input type="number" id="stopnumber" name="stopnum" max="9999" min="0"> <input type="submit" id="stopsubmit" value="Submit">
+    <div class="fmain">
+        <div class="fcol">Bus stop number:</div>
+        <div class="fcol"><input type="number" id="stopnumber" name="stopnum" max="9999" min="0"></div>
+        <div class="fcol"><input type="submit" id="stopsubmit" value="Submit"></div>
+    </div>
 </form>
 
 <form id="searchform" action="/search/">
-    Search for stop: <input type="text" id="searchquery" name="q"> <input type="submit" id="searchsubmit" value="Search">
+    <div class="fmain">
+        <div class="fcol">Search for stop:</div>
+        <div class="fcol"><input type="text" id="searchquery" name="q"></div>
+        <div class="fcol"><input type="submit" id="searchsubmit" value="Search"></div>
+    </div>
 </form>
 
 <div id="info">
