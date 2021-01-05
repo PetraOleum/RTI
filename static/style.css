@@ -17,6 +17,8 @@ h1 {
 
 .notice {
     text-align: center;
+    font-size: 0.9em;
+    margin: 5 0;
 }
 
 #stoptimetable, #searchtable {
