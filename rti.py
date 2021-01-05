@@ -80,7 +80,9 @@ def timetable(stop):
     return render_template("stop.html", stopnumber=stop,
                            stopname=rv["Stop"]["Name"],
                            lup=lastup.strftime("%H:%M:%S, %A %B %-d"),
-                           table=tTable if len(ttdat) > 0 else "")
+                           table=tTable if len(ttdat) > 0 else "",
+                           notice=rv["Notices"][0]["LineNote"] if "Notices"
+                           in rv else "")
 
 
 @app.route("/search/")

@@ -12,6 +12,10 @@
 
 {{ table }}
 
+{% if notice != "" %}
+    <p class="notice" style="text-align: center"><strong>Notice:</strong> "<em>{{ notice }}</em>"</p>
+{% endif %}
+
 <form id="stopform" action="/stop/">
     <div class="fmain">
         <div class="fcol">Bus stop number:</div>
