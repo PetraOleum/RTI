@@ -81,8 +81,7 @@ def timetable(stop):
                            stopname=rv["Stop"]["Name"],
                            lup=lastup.strftime("%H:%M:%S, %A %B %-d"),
                            table=tTable if len(ttdat) > 0 else "",
-                           notice=rv["Notices"][0]["LineNote"] if "Notices"
-                           in rv else "")
+                           notices=[n["LineNote"] for n in rv["Notices"]] if "Notices" in rv else None)
 
 
 @app.route("/search/")

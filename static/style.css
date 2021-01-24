@@ -94,3 +94,24 @@ h1 {
         display: table-cell;
         padding: 0 10px;
 }
+
+.notices {
+    text-align: center;
+    font-size: 0.9em;
+    margin: 15 auto;
+    max-width: 400px;
+    padding: 5px;
+    border: 1px solid lightgray;
+}
+
+.notice-header {
+    margin: 0;
+    font-weight: bold;
+}
+
+.notice {
+    margin: 0;
+    text-align: center;
+    font-size: 0.9em;
+    font-style: italic;
+}

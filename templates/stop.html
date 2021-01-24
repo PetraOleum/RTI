@@ -10,13 +10,22 @@
 
     <p class="lastupdated">Last updated at {{ lup }}</p>
 
-    {% if notice != "" %}
-        <p class="notice" style="margin: 5 0; text-align: center; font-size: 0.9em;"><strong>Notice:</strong> "<em>{{ notice }}</em>"</p>
-    {% endif %}
-
     {{ table }}
 
     <p></p>
+
+    {% if notices is not none %}
+        <div class="notices" style="text-align: center; font-size: 0.9em; margin: 15 auto; max-width: 400px; padding: 5px; border: 1px solid lightgray;">
+            {% if notices|length > 1 %}
+                <p class="notice-header" style="margin: 0; font-weight: bold;">Metlink stop notices:</p>
+            {% else %}
+                <p class="notice-header" style="margin: 0; font-weight: bold;">Metlink stop notice:</p>
+            {% endif %}
+            {% for notice in notices %}
+                <p class="notice" style="margin: 0; text-align: center; font-size: 0.9em; font-style: italic;">{{ notice }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
 
     <form id="stopform" action="/stop/">
         <div class="fmain">
@@ -25,6 +34,7 @@
             <div class="fcol"><input type="submit" id="stopsubmit" value="Submit"></div>
         </div>
     </form>
+
 
     <div id="info">
         <p><a href="/">Home</a> - Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
