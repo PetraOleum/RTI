@@ -27,6 +27,8 @@
                 <p class="notice" style="margin: 0; text-align: center; font-size: 0.9em; font-style: italic;">{{ notice }}</p>
             {% endfor %}
         </div>
+    {% else %}
+        <p></p>
     {% endif %}
 
     <form id="stopform" action="/stop/">
