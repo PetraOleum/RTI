@@ -10,9 +10,11 @@
 
     <p class="lastupdated">Last updated at {{ lup }}</p>
 
-    {{ table }}
-
-    <p></p>
+    {% if table is not none %}
+        {{ table }}
+    {% else %}
+        <p class="no-table" style="margin: 5 auto; text-align: center; font-weight: bold;">No services.</p>
+    {% endif %}
 
     {% if notices is not none %}
         <div class="notices" style="text-align: center; font-size: 0.9em; margin: 15 auto; max-width: 400px; padding: 5px; border: 1px solid lightgray;">

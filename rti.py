@@ -67,20 +67,23 @@ def timetable(stop):
     # return req.json()
     rv = req.json()
     lastup = isoparse(rv["LastModified"])
-    ttdat = [{"route": s["ServiceID"], "dest": s["DestinationStopName"],
-              "sched":
-              isoparse(s["AimedDeparture"]).strftime("%H:%M"),
-              "est": "" if s["ExpectedDeparture"] is None else
-                  "{} mins".format(minCompare(isoparse(s["ExpectedDeparture"]),
-                                              lastup)),
-              "status": depStatus[s["DepartureStatus"]] if
-              s["DepartureStatus"] in depStatus else s["DepartureStatus"]}
-             for s in rv["Services"]]
-    tTable = TimeTable(ttdat)
+    if "Services" in rv:
+        ttdat = [{"route": s["ServiceID"], "dest": s["DestinationStopName"],
+                  "sched":
+                  isoparse(s["AimedDeparture"]).strftime("%H:%M"),
+                  "est": "" if s["ExpectedDeparture"] is None else
+                      "{} mins".format(minCompare(isoparse(s["ExpectedDeparture"]),
+                                                  lastup)),
+                  "status": depStatus[s["DepartureStatus"]] if
+                  s["DepartureStatus"] in depStatus else s["DepartureStatus"]}
+                 for s in rv["Services"]]
+        tTable = TimeTable(ttdat)
+    else:
+        ttdat = []
     return render_template("stop.html", stopnumber=stop,
                            stopname=rv["Stop"]["Name"],
                            lup=lastup.strftime("%H:%M:%S, %A %B %-d"),
-                           table=tTable if len(ttdat) > 0 else "",
+                           table=tTable if len(ttdat) > 0 else None,
                            notices=[n["LineNote"] for n in rv["Notices"]] if "Notices" in rv else None)
 
 
