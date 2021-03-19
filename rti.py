@@ -7,6 +7,7 @@ from urllib.parse import quote
 
 depStatus = {
     "onTime": "On time",
+    "ontime": "On time",
     "early": "Early",
     "delayed": "Late",
     "cancelled": "Cancelled"
@@ -43,6 +44,19 @@ def stopExtract(code, name):
 def minCompare(comp, origin):
     return 0 if comp <= origin else (comp - origin).seconds // 60
 
+def statusString(service):
+    status = service["DepartureStatus"]
+    if status in depStatus:
+        aimedD = service["AimedDeparture"]
+        estD = service["ExpectedDeparture"]
+        if status == "delayed" and aimedD is not None and estD is not None:
+            return "{}m late".format(minCompare(isoparse(estD),
+                                                isoparse(aimedD)))
+        else:
+            return depStatus[status]
+    else:
+        return status
+
 
 @app.route("/")
 def rti():
@@ -74,8 +88,7 @@ def timetable(stop):
                   "est": "" if s["ExpectedDeparture"] is None else
                       "{} mins".format(minCompare(isoparse(s["ExpectedDeparture"]),
                                                   lastup)),
-                  "status": depStatus[s["DepartureStatus"]] if
-                  s["DepartureStatus"] in depStatus else s["DepartureStatus"]}
+                  "status": statusString(s)}
                  for s in rv["Services"]]
         tTable = TimeTable(ttdat)
     else:
