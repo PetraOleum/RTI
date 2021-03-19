@@ -15,11 +15,11 @@ depStatus = {
 
 
 class TimeTable(Table):
-    route = Col("Route")
-    dest = Col("Dest")
-    sched = Col("Sched")
-    est = Col("Est")
-    status = Col("Status")
+    route = Col("Route", th_html_attrs={"title": "Route"})
+    dest = Col("Destination", th_html_attrs={"title": "Destination"})
+    sched = Col("Sched", th_html_attrs={"title": "Scheduled department time"})
+    status = Col("Status", th_html_attrs={"title": "Status"})
+    est = Col("Est", th_html_attrs={"title": "Estimated time until departure"})
     table_id = "stoptimetable"
 
 
@@ -52,6 +52,9 @@ def statusString(service):
         if status == "delayed" and aimedD is not None and estD is not None:
             return "{}m late".format(minCompare(isoparse(estD),
                                                 isoparse(aimedD)))
+        elif status == "early" and aimedD is not None and estD is not None:
+            return "{}m early".format(minCompare(isoparse(aimedD),
+                                                isoparse(estD)))
         else:
             return depStatus[status]
     else:
