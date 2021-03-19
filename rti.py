@@ -16,7 +16,7 @@ depStatus = {
 
 class TimeTable(Table):
     route = Col("Route", th_html_attrs={"title": "Route"})
-    dest = Col("Destination", th_html_attrs={"title": "Destination"})
+    dest = Col("Dest", th_html_attrs={"title": "Destination"})
     sched = Col("Sched", th_html_attrs={"title": "Scheduled department time"})
     status = Col("Status", th_html_attrs={"title": "Status"})
     est = Col("Est", th_html_attrs={"title": "Estimated time until departure"})
