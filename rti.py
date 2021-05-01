@@ -105,7 +105,7 @@ def timetable(stop):
 
 @app.route("/search/")
 def stopsearch():
-    query = request.args["q"] if "q" in request.args else ""
+    query = request.args["q"].strip() if "q" in request.args else ""
     req = requests.get("{}{}".format(searchurl, quote(query)))
     if req.status_code != 200:
         return render_template("badsearch.html", error=req.status_code)
