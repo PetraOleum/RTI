@@ -32,16 +32,18 @@ stoplisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/stops"
 stopinfo = []
 stopids = {}
 stopnames = {}
-stoplastupdate = dt.datetime(1970, 1, 1)
+stoplastupdate = dt.datetime.now(patz)
 
 def updateStopInfo(force=False):
     global stopinfo
     global stopids
     global stopnames
     global stoplastupdate
-    nowtime = dt.datetime.now()
+    nowtime = dt.datetime.now(patz)
     if force or (nowtime - stoplastupdate).days >= 7:
         req = requests.get(stoplisturl, headers=headers)
+        if req.status_code != 200:
+            return
         stopinfo = req.json()
         stoplastupdate = nowtime
         stopids = {x["stop_id"]: ind for ind, x in enumerate(stopinfo)}
