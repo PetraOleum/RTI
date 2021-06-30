@@ -60,6 +60,7 @@ class SearchTable(Table):
     code = LinkCol("Code", "timetable", url_kwargs=dict(stop="sms"),
                    attr='code')
     stop = Col("Stop")
+    zone = Col("Zone")
     table_id = "searchtable"
 
 updateStopInfo(True)
@@ -132,6 +133,7 @@ def timetable(stop):
         ttdat = []
     return render_template("stop.html", stopnumber=stop,
                            stopname=stopname,
+                           zone=rv["farezone"] if "farezone" in rv else "?",
                            lup=lastup.strftime("%H:%M:%S, %A %B %-d"),
                            table=tTable if len(ttdat) > 0 else None,
                            notices=[n["LineNote"] for n in rv["Notices"]] if "Notices" in rv else None)
@@ -150,7 +152,9 @@ def stopsearch():
     if len(toprank) == 0:
         return render_template("badsearch.html")
     toprank.sort(reverse=True, key=lambda a: a[1])
-    stdat = [{"code": stopnames[name], "sms": stopnames[name], "stop": name}
+    stdat = [{"code": stopnames[name], "sms": stopnames[name], "stop":
+              name, "zone":
+              stopinfo[stopids[stopnames[name]]]["zone_id"]}
              for name, ratio in toprank[:20]]
     sTable = SearchTable(stdat)
     # return sTable.__html__()
