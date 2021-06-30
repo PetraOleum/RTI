@@ -48,6 +48,7 @@ def updateStopInfo(force=False):
         stoplastupdate = nowtime
         stopids = {x["stop_id"]: ind for ind, x in enumerate(stopinfo)}
         stopnames = {x["stop_name"]: x["stop_id"] for x in stopinfo}
+        print("Updated stop metadata at {}.".format(nowtime.strftime("%c")))
 
 class TimeTable(Table):
     route = Col("Route", th_html_attrs={"title": "Route"})
