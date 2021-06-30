@@ -32,7 +32,7 @@ stoplisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/stops"
 stopinfo = []
 stopids = {}
 stopnames = {}
-stoplastupdate = dt.datetime.now(patz)
+stoplastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 
 def updateStopInfo(force=False):
     global stopinfo
