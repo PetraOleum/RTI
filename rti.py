@@ -1,9 +1,12 @@
 from flask import Flask, render_template, request, redirect
 from flask_table import Table, Col, LinkCol
 from dateutil.parser import isoparse
+from dateutil.tz import gettz
+import datetime as dt
 import requests
 import re
 from urllib.parse import quote
+from fuzzywuzzy import fuzz
 
 depStatus = {
     "onTime": "On time",
@@ -13,6 +16,36 @@ depStatus = {
     "cancelled": "Cancelled"
 }
 
+with open("api.key", "r") as f:
+    apikey = f.read().strip()
+
+headers = {
+    "accept": "application/json",
+    "x-api-key": apikey
+}
+
+patz = gettz("Pacific/Auckland")
+
+depurl = "https://api.opendata.metlink.org.nz/v1/stop-predictions"
+stoplisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/stops"
+
+stopinfo = []
+stopids = {}
+stopnames = {}
+stoplastupdate = dt.datetime(1970, 1, 1)
+
+def updateStopInfo(force=False):
+    global stopinfo
+    global stopids
+    global stopnames
+    global stoplastupdate
+    nowtime = dt.datetime.now()
+    if force or (nowtime - stoplastupdate).days >= 7:
+        req = requests.get(stoplisturl, headers=headers)
+        stopinfo = req.json()
+        stoplastupdate = nowtime
+        stopids = {x["stop_id"]: ind for ind, x in enumerate(stopinfo)}
+        stopnames = {x["stop_name"]: x["stop_id"] for x in stopinfo}
 
 class TimeTable(Table):
     route = Col("Route", th_html_attrs={"title": "Route"})
@@ -29,26 +62,22 @@ class SearchTable(Table):
     stop = Col("Stop")
     table_id = "searchtable"
 
+updateStopInfo(True)
 
 app = Flask(__name__)
-
-stopurl = "https://www.metlink.org.nz/api/v1/StopDepartures/"
-searchurl = "https://www.metlink.org.nz/api/v1/StopSearch/"
-
 
 def stopExtract(code, name):
     z = re.match("{} - (.*)".format(code), name)
     return z.groups()[0]
 
-
 def minCompare(comp, origin):
     return 0 if comp <= origin else (comp - origin).seconds // 60
 
 def statusString(service):
-    status = service["DepartureStatus"]
+    status = service["status"]
     if status in depStatus:
-        aimedD = service["AimedDeparture"]
-        estD = service["ExpectedDeparture"]
+        aimedD = service["departure"]["aimed"]
+        estD = service["departure"]["expected"]
         if status == "delayed" and aimedD is not None and estD is not None:
             return "{}m late".format(minCompare(isoparse(estD),
                                                 isoparse(aimedD)))
@@ -77,27 +106,32 @@ def ttSearch():
 
 @app.route("/stop/<string:stop>/")
 def timetable(stop):
-    req = requests.get("{}{}".format(stopurl, stop))
+    req = requests.get(depurl, params={"stop_id": stop}, headers=headers)
     if req.status_code != 200:
         # return "Error {}".format(req.status_code)
         return render_template("nostop.html", error=req.status_code)
     # return req.json()
+    stopname = "Unknown Stop"
+    updateStopInfo()
+    if stop in stopids:
+        stopname = stopinfo[stopids[stop]]["stop_name"]
     rv = req.json()
-    lastup = isoparse(rv["LastModified"])
-    if "Services" in rv:
-        ttdat = [{"route": s["ServiceID"], "dest": s["DestinationStopName"],
+    lastup = dt.datetime.now(patz)
+    if "departures" in rv:
+        ttdat = [{"route": s["service_id"], "dest": s["destination"]["name"],
                   "sched":
-                  isoparse(s["AimedDeparture"]).strftime("%H:%M"),
-                  "est": "" if s["ExpectedDeparture"] is None else
-                      "{} mins".format(minCompare(isoparse(s["ExpectedDeparture"]),
+                  isoparse(s["departure"]["aimed"]).strftime("%H:%M"),
+                  "est": "" if s["departure"]["expected"] is None else
+                      "{} mins".format(
+                          minCompare(isoparse(s["departure"]["expected"]),
                                                   lastup)),
                   "status": statusString(s)}
-                 for s in rv["Services"]]
+                 for s in rv["departures"]]
         tTable = TimeTable(ttdat)
     else:
         ttdat = []
     return render_template("stop.html", stopnumber=stop,
-                           stopname=rv["Stop"]["Name"],
+                           stopname=stopname,
                            lup=lastup.strftime("%H:%M:%S, %A %B %-d"),
                            table=tTable if len(ttdat) > 0 else None,
                            notices=[n["LineNote"] for n in rv["Notices"]] if "Notices" in rv else None)
@@ -105,13 +139,19 @@ def timetable(stop):
 
 @app.route("/search/")
 def stopsearch():
+    updateStopInfo()
     query = request.args["q"].strip() if "q" in request.args else ""
-    req = requests.get("{}{}".format(searchurl, quote(query)))
-    if req.status_code != 200:
-        return render_template("badsearch.html", error=req.status_code)
-    stdat = [{"code": s["Sms"], "sms": s["Sms"], "stop":
-              stopExtract(s["Sms"], s["Name"])} for s
-             in req.json()]
+    if query == "":
+        return render_template("badsearch.html")
+    qlower = query.lower()
+    ranknames = [(name, fuzz.token_set_ratio(name.lower(), qlower)) for name in
+               list(stopnames.keys())]
+    toprank = [tup for tup in ranknames if tup[1] > 40]
+    if len(toprank) == 0:
+        return render_template("badsearch.html")
+    toprank.sort(reverse=True, key=lambda a: a[1])
+    stdat = [{"code": stopnames[name], "sms": stopnames[name], "stop": name}
+             for name, ratio in toprank[:20]]
     sTable = SearchTable(stdat)
     # return sTable.__html__()
     return render_template("search.html", searchstring=query,

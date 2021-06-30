@@ -133,3 +133,6 @@ dmypy.json
 # CGI stuff
 *.fcgi
 *.sock
+
+# API Key
+api.key
