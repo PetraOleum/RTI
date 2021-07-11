@@ -20,6 +20,24 @@
     </div>
 </form>
 
+{% if routes is not none and routes|length > 0 %}
+<form id="routeform" action="/route/">
+    <div class="fmain">
+        <div class="fcol">Route:</div>
+        <div class="fcol">
+            <select name="r" id="routeselect">
+                <option value="none" selected disabled hidden>Select</option>
+                {% for route in routes %}
+                <option value="{{ route }}">{{ route }}</option>
+                {% endfor %}
+            </select>
+
+        </div>
+        <div class="fcol"><input type="submit" id="routesubmit" value="Submit"></div>
+    </div>
+</form>
+{% endif %}
+
 <form id="searchform" action="/search/">
     <div class="fmain">
         <div class="fcol">Search for stop:</div>

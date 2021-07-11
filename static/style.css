@@ -27,13 +27,17 @@ h1 {
     font-size: 0.9em;
 }
 
-#stoptimetable, #searchtable {
+#stoptimetable, #stoptable {
     margin-left: auto;
     margin-right: auto;
     border-collapse: collapse;
 }
 
-#stopform, #searchform {
+#stoptable {
+    margin-bottom: 0.6em;
+}
+
+#stopform, #routeform, #searchform {
     max-width: 400px;
     margin-left: auto;
     margin-right: auto;
@@ -52,24 +56,29 @@ h1 {
     max-width: 100%;
 }
 
+#routeselect {
+    max-width: 100%;
+    width: 100%;
+}
+
 #stopsubmit, #searchsubmit {
     /* float: right; */
 }
 
-#stoptimetable th, #searchtable th {
+#stoptimetable th, #stoptable th {
     text-align: center;
 }
 
-#stoptimetable th, #stoptimetable td, #searchtable th, #searchtable td{
+#stoptimetable th, #stoptimetable td, #stoptable th, #stoptable td{
     border: 1px solid #ccc;
     padding: 15px 5px 10px 5px;
 }
 
-#stoptimetable tr:nth-child(even), #searchtable tr:nth-child(even){
+#stoptimetable tr:nth-child(even), #stoptable tr:nth-child(even){
     background-color: #f0f0f0;
 }
 
-#stoptimetable thead, #searchtable thead{
+#stoptimetable thead, #stoptable thead{
     background-color: #dddddd;
 }
 
@@ -120,4 +129,15 @@ h1 {
     text-align: center;
     font-size: 0.9em;
     font-style: italic;
+}
+
+.zonecol {
+    text-align: center;
+}
+
+.routename {
+    text-align: center;
+    font-style: italic;
+    font-size: 0.95em;
+    margin: 0;
 }
