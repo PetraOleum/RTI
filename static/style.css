@@ -2,7 +2,6 @@ body {
     font-family: helvetica,sans,serif
 }
 
-
 h1 {
     font-size: 1.1em;
     text-align: center;
@@ -15,6 +14,10 @@ h1 {
     margin: 1;
 }
 
+.lastupdated {
+    font-size: 0.9em;
+}
+
 .notice {
     text-align: center;
     font-size: 0.9em;
@@ -24,7 +27,6 @@ h1 {
 #zone {
     text-align: center;
     margin: 0.5;
-    font-size: 0.9em;
 }
 
 .cleantable {

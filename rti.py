@@ -255,7 +255,8 @@ def stopsearch():
     updateStopInfo()
     query = request.args["q"].strip() if "q" in request.args else ""
     if query == "":
-        return render_template("badsearch.html")
+        return render_template("badsearch.html",
+                               lup=stoplastupdate.strftime("%A %B %-d"))
     qlower = query.lower()
     ranknames = [(name, fuzz.token_set_ratio(name.lower(), qlower)) for name in
                list(stopnames.keys())]
@@ -272,6 +273,7 @@ def stopsearch():
     # return sTable.__html__()
     return render_template("search.html", searchstring=query,
                            numres=len(stdat),
+                           lup=stoplastupdate.strftime("%A %B %-d"),
                            table=sTable if len(stdat) > 0 else "")
 
 
@@ -289,12 +291,14 @@ def routeInfo(rquery):
     updateRouteInfo()
     if rquery == "" or rquery not in routelist:
         return render_template("badroute.html", error="No such route",
+                               lup=routeslastupdate.strftime("%A %B %-d"),
                                routes=sortedRouteCodes())
     routeinfo = routelist[rquery]
     req = requests.get(stoplisturl, params={"route_id": routeinfo["route_id"]}, headers=headers)
     if req.status_code != 200:
         # return "Error {}".format(req.status_code)
         return render_template("badroute.html", error=req.status_code,
+                               lup=routeslastupdate.strftime("%A %B %-d"),
                                routes=sortedRouteCodes())
     rv = req.json()
     if len(rv) == 0:
@@ -310,6 +314,7 @@ def routeInfo(rquery):
     rTable = StopTable(rstopsdat)
     return render_template("route.html", code=route_code, name=route_name,
                            table=rTable if len(rstopsdat) > 0 else "",
+                           lup=routeslastupdate.strftime("%A %B %-d"),
                            routes=sortedRouteCodes())
 
 

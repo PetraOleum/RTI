@@ -10,6 +10,10 @@
 
     <p class="explainer">Error: {{ error }}.</p>
 
+    <p class="lastupdated">Route database last updated {{ lup }}</p>
+
+    <br/>
+
     {% if routes is not none and routes|length > 0 %}
     <form id="routeform" action="/route/">
         <div class="fmain">
