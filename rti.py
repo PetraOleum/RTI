@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect
 from flask_table import Table, Col, LinkCol
 from dateutil.parser import isoparse
 from dateutil.tz import gettz
+from math import cos, atan, pi, sqrt, log10, floor
 import datetime as dt
 import requests
 import re
@@ -23,6 +24,8 @@ headers = {
     "accept": "application/json",
     "x-api-key": apikey
 }
+
+Rm2 = (6371.009 * 1000)**2
 
 patz = gettz("Pacific/Auckland")
 
@@ -95,6 +98,50 @@ def sortedRouteCodes():
     return rcodes
 
 
+def planeDistance2(lat1, lon1, lat2, lon2):
+    rlat1 = pi/180 * lat1
+    rlon1 = pi/180 * lon1
+    rlat2 = pi/180 * lat2
+    rlon2 = pi/180 * lon2
+    pm = (rlat1 + rlat2)/2
+    dlat = rlat1 - rlat2
+    dlon = rlon1 - rlon2
+    return Rm2 * (dlat**2 + (cos(pm) * dlon)**2)
+
+
+def heading(dlat, dlon):
+    if dlon == 0:
+        if dlat > 0:
+            return "N"
+        else:
+            return "S"
+    adeg = atan(dlat / dlon) * 180 / pi
+    if dlon > 0:
+        if adeg > 45*1.5:
+            return "N"
+        if adeg > 45*0.5:
+            return "NE"
+        if adeg > -45*0.5:
+            return "E"
+        if adeg > -45*1.5:
+            return "SE"
+        return "S"
+    else:
+        if adeg > 45*1.5:
+            return "S"
+        if adeg > 45*0.5:
+            return "SW"
+        if adeg > -45*0.5:
+            return "W"
+        if adeg > -45*1.5:
+            return "NW"
+        return "N"
+
+
+def prettyDistance(dist, fig=1):
+    return floor(round(dist, fig - 1 -floor(log10(dist))))
+
+
 class TimeTable(Table):
     routeCol = LinkCol("Route", "routeInfo", th_html_attrs={"title": "Route"},
                     url_kwargs=dict(rquery="rname"), attr='route')
@@ -103,6 +150,7 @@ class TimeTable(Table):
     status = Col("Status", th_html_attrs={"title": "Status"})
     est = Col("Est", th_html_attrs={"title": "Estimated time until departure"})
     table_id = "stoptimetable"
+    classes = ["cleantable"]
 
 
 class StopTable(Table):
@@ -111,6 +159,17 @@ class StopTable(Table):
     stop = Col("Stop")
     zone = Col("Zone", td_html_attrs = {"class": "zonecol"})
     table_id = "stoptable"
+    classes = ["cleantable"]
+
+
+class LocationTable(Table):
+    code = LinkCol("Code", "timetable", url_kwargs=dict(stop="sms"),
+                   attr='code')
+    stop = Col("Stop")
+    zone = Col("Zone", td_html_attrs = {"class": "zonecol"})
+    distance = Col("Distance")
+    table_id = "locationtable"
+    classes = ["cleantable"]
 
 
 updateStopInfo(True)
@@ -252,6 +311,50 @@ def routeInfo(rquery):
     return render_template("route.html", code=route_code, name=route_name,
                            table=rTable if len(rstopsdat) > 0 else "",
                            routes=sortedRouteCodes())
+
+
+@app.route("/stop/<string:stop>/nearby/")
+def nearbyStops(stop):
+    updateStopInfo()
+    if stop == "" or stop not in stopids:
+        return render_template("badnearby.html",
+                               error = "Stop not found",
+                               lup=stoplastupdate.strftime("%A %B %-d"))
+    thisstop = stopinfo[stopids[stop]]
+    stopDistances = [{"id": x["stop_id"], 
+                      "parent": x["parent_station"],
+                      "name": x["stop_name"],
+                      "zone": x["zone_id"],
+                      "dlat": x["stop_lat"] - thisstop["stop_lat"],
+                      "dlon": x["stop_lon"] - thisstop["stop_lon"],
+                      "dist2": planeDistance2(thisstop["stop_lat"],
+                                              thisstop["stop_lon"],
+                                              x["stop_lat"],
+                                              x["stop_lon"])}
+                     for x in stopinfo if x["stop_id"] != stop]
+    stopDistances = [x for x in stopDistances if x["dist2"] >= 1]
+    if len(stopDistances) == 0:
+        return render_template("badnearby.html",
+                               error = "No nearby stops found",
+                               lup=stoplastupdate.strftime("%A %B %-d"))
+    stopDistances.sort(key=lambda x: x["dist2"])
+    nstopsDat = [{"code": x["id"],
+                  "sms": x["parent"] if x["parent"] != "" else
+                  x["id"],
+                  "stop": x["name"],
+                  "zone": x["zone"],
+                  "distance": "{}m {}".format(
+                      prettyDistance(sqrt(x["dist2"])),
+                      heading(x["dlat"], x["dlon"]))} for x in
+                 stopDistances[:20]]
+    nTable = LocationTable(nstopsDat)
+    return render_template("nearby.html", code=stop,
+                           name=thisstop["stop_name"],
+                           zone=thisstop["zone_id"],
+                           lup=stoplastupdate.strftime("%A %B %-d"),
+                           table=nTable)
+
+
 
 
 if __name__ == "__main__":

@@ -27,13 +27,13 @@ h1 {
     font-size: 0.9em;
 }
 
-#stoptimetable, #stoptable {
+.cleantable {
     margin-left: auto;
     margin-right: auto;
     border-collapse: collapse;
 }
 
-#stoptable {
+#stoptable, #locationtable {
     margin-bottom: 0.6em;
 }
 
@@ -65,20 +65,20 @@ h1 {
     /* float: right; */
 }
 
-#stoptimetable th, #stoptable th {
+.cleantable th {
     text-align: center;
 }
 
-#stoptimetable th, #stoptimetable td, #stoptable th, #stoptable td{
+.cleantable th, .cleantable td {
     border: 1px solid #ccc;
     padding: 15px 5px 10px 5px;
 }
 
-#stoptimetable tr:nth-child(even), #stoptable tr:nth-child(even){
+.cleantable tr:nth-child(even) {
     background-color: #f0f0f0;
 }
 
-#stoptimetable thead, #stoptable thead{
+.cleantable thead {
     background-color: #dddddd;
 }
 
