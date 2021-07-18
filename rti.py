@@ -33,14 +33,18 @@ depurl = "https://api.opendata.metlink.org.nz/v1/stop-predictions"
 stoplisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/stops"
 routelisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/routes"
 feedinfourl = "https://api.opendata.metlink.org.nz/v1/gtfs/feed_info"
+vehposurl = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/vehiclepositions"
+stoptimesurl = "https://api.opendata.metlink.org.nz/v1/gtfs/stop_times"
 
 stopinfo = []
 stopids = {}
 feedinfo = {}
 stopnames = {}
 routelist = {}
+vehpos = {}
 stoplastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 routeslastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
+vehposlastupdate = dt.datetime.now(patz) - dt.timedelta(minutes=10)
 
 def updateFeedInfo(force=False):
     global feedinfo
@@ -55,7 +59,8 @@ def updateFeedInfo(force=False):
             feedinfo["feed_start_date"] = tstoday
             return
         feedinfo = req.json()[0]
-        print("Updated feed_info metadata at {}.".format(nowtime.strftime("%c")))
+        print("Updated feed_info metadata at {}, new expiry date: {}.".format(
+            nowtime.strftime("%c"), feedinfo["feed_end_date"]))
 
 
 def updateStopInfo(force=False):
@@ -94,6 +99,20 @@ def updateRouteInfo(force=False):
         routelist = {x["route_short_name"]: x for x in routeinfo}
         routeslastupdate = nowtime
         print("Updated route metadata at {}.".format(nowtime.strftime("%c")))
+
+def updateVehPos(force=False):
+    global vehpos
+    global vehposlastupdate
+    nowtime = dt.datetime.now(patz)
+    if force or (nowtime - vehposlastupdate).seconds > 60*5:
+        req = requests.get(vehposurl, headers=headers)
+        if req.status_code != 200:
+            print("Failed to update vehicle position data at {}.".format(
+                nowtime.strftime("%c")))
+            return
+        vehpos = req.json()
+        vehposlastupdate = dt.datetime.fromtimestamp(
+            vehpos["header"]["timestamp"], patz)
 
 
 def routeCodeKey(rc):
@@ -170,7 +189,8 @@ def prettyDistance(dist, fig=1):
 
 class TimeTable(Table):
     routeCol = LinkCol("Route", "routeInfo", th_html_attrs={"title": "Route"},
-                    url_kwargs=dict(rquery="rname"), attr='route')
+                    url_kwargs=dict(rquery="rname", trip="trip_id"),
+                       attr='route')
     dest = Col("Dest", th_html_attrs={"title": "Destination"})
     sched = Col("Sched", th_html_attrs={"title": "Scheduled departure time"})
     status = Col("Status", th_html_attrs={"title": "Status"})
@@ -185,6 +205,16 @@ class StopTable(Table):
     stop = Col("Stop")
     zone = Col("Zone", td_html_attrs = {"class": "zonecol"})
     table_id = "stoptable"
+    classes = ["cleantable"]
+
+
+class StopTimeTable(Table):
+    code = LinkCol("Code", "timetable", url_kwargs=dict(stop="sms"),
+                   attr='code')
+    stop = Col("Stop")
+    sched = Col("Sched")
+    zone = Col("Zone", td_html_attrs = {"class": "zonecol"})
+    table_id = "stoptimetable"
     classes = ["cleantable"]
 
 
@@ -226,6 +256,13 @@ def statusString(service):
     else:
         return status
 
+def tripFromVID(VID):
+    if "entity" in reversed(vehpos):
+        for x in vehpos["entity"]:
+            postripid = x["vehicle"]["trip"]["trip_id"]
+            if (x["vehicle"]["vehicle"]["id"] == VID):
+                return postripid
+    return None
 
 @app.route("/")
 def rti():
@@ -250,6 +287,7 @@ def timetable(stop):
     # return req.json()
     stopname = "Unknown Stop"
     updateStopInfo()
+    updateVehPos()
     if stop in stopids:
         stopname = stopinfo[stopids[stop]]["stop_name"]
     rv = req.json()
@@ -257,8 +295,11 @@ def timetable(stop):
     if "departures" in rv:
         ttdat = [{"route": s["service_id"], "rname": s["service_id"],
                   "dest": s["destination"]["name"],
+                  "trip_id": tripFromVID(s["vehicle_id"]) if
+                      "vehicle_id" in s and s["vehicle_id"] is not None
+                      else None,
                   "sched":
-                  isoparse(s["departure"]["aimed"]).strftime("%H:%M"),
+                      isoparse(s["departure"]["aimed"]).strftime("%H:%M"),
                   "est": "" if s["departure"]["expected"] is None else
                       "{} mins".format(
                           minCompare(isoparse(s["departure"]["expected"]),
@@ -320,6 +361,21 @@ def routeInfo(rquery):
                                lup=routeslastupdate.strftime("%A %B %-d"),
                                routes=sortedRouteCodes())
     routeinfo = routelist[rquery]
+    ra = request.args
+    rtrip = ("trip" in ra and ra["trip"] != "" and ra["trip"] != "none")
+    slist = []
+    if rtrip:
+        req = requests.get(stoptimesurl, params={"trip_id": ra["trip"]},
+                           headers=headers)
+        if req.status_code != 200:
+            rtrip = False
+        else:
+            slist = req.json()
+            if len(slist) == 0:
+                rtrip = False
+    
+    route_code = routeinfo["route_short_name"]
+    route_name = routeinfo["route_long_name"]
     req = requests.get(stoplisturl, params={"route_id": routeinfo["route_id"]}, headers=headers)
     if req.status_code != 200:
         # return "Error {}".format(req.status_code)
@@ -330,19 +386,45 @@ def routeInfo(rquery):
     if len(rv) == 0:
         return render_template("badroute.html", error="No stops in route",
                                routes=sortedRouteCodes())
-    route_code = routeinfo["route_short_name"]
-    route_name = routeinfo["route_long_name"]
-    rstopsdat = [{"code": stop["stop_id"],
-                  "sms": stop["parent_station"] if
-                  stop["parent_station"] != "" else stop["stop_id"],
-                  "stop": stop["stop_name"],
-                  "zone": stop["zone_id"]} for stop in rv]
-    rTable = StopTable(rstopsdat)
-    return render_template("route.html", code=route_code, name=route_name,
-                           table=rTable if len(rstopsdat) > 0 else "",
-                           lup=routeslastupdate.strftime("%A %B %-d"),
-                           routes=sortedRouteCodes())
-
+    if rtrip:
+        routeslist = [x["stop_id"] for x in rv]
+        if (slist[0]["stop_id"] not in routeslist or slist[-1]["stop_id"] not in
+            routeslist):
+            return render_template("badroute.html", error=
+                                   """Mismatch between stops in route and stops
+                                   in trip. Trip ID may correspond to another
+                                   route assigned to this bus""",
+                                   lup=routeslastupdate.strftime("%A %B %-d"),
+                                   routes=sortedRouteCodes())
+        direction = "Outbound" if re.match("^[^_]*__([01])", ra["trip"]).groups()[0] == "0" else "Inbound"
+        rstopsdat = [{"code": stop["stop_id"],
+                      "sms": stopinfo[stopids[stop["stop_id"]]]["parent_station"] if
+                          stop["stop_id"] in stopids and
+                          stopinfo[stopids[stop["stop_id"]]]["parent_station"] !=
+                          "" else stop["stop_id"],
+                      "stop": stopinfo[stopids[stop["stop_id"]]]["stop_name"]
+                          if stop["stop_id"] in stopids else "",
+                      "zone": stopinfo[stopids[stop["stop_id"]]]["zone_id"]
+                          if stop["stop_id"] in stopids else "",
+                      "sched": stop["departure_time"] if "departure_time" in
+                          stop and stop["departure_time"] != "" else
+                          stop["arrival_time"]} for stop in slist]
+        rTable = StopTimeTable(rstopsdat)
+        return render_template("trip.html", code=route_code, name=route_name,
+                               table=rTable if len(rstopsdat) > 0 else "",
+                               direction=direction,
+                               routes=sortedRouteCodes())
+    else:
+        rstopsdat = [{"code": stop["stop_id"],
+                      "sms": stop["parent_station"] if
+                      stop["parent_station"] != "" else stop["stop_id"],
+                      "stop": stop["stop_name"],
+                      "zone": stop["zone_id"]} for stop in rv]
+        rTable = StopTable(rstopsdat)
+        return render_template("route.html", code=route_code, name=route_name,
+                               table=rTable if len(rstopsdat) > 0 else "",
+                               lup=routeslastupdate.strftime("%A %B %-d"),
+                               routes=sortedRouteCodes())
 
 @app.route("/stop/<string:stop>/nearby/")
 def nearbyStops(stop):

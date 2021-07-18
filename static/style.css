@@ -29,13 +29,19 @@ h1 {
     margin: 0.5;
 }
 
+#allstopslink {
+    text-align: center;
+    font-size: 0.9em;
+    margin: 2 0;
+}
+
 .cleantable {
     margin-left: auto;
     margin-right: auto;
     border-collapse: collapse;
 }
 
-#stoptable, #locationtable {
+#stoptable, #locationtable, #stoptimetable {
     margin-bottom: 0.6em;
 }
 
@@ -98,6 +104,8 @@ h1 {
     margin-left: auto;
     margin-right: auto;
     font-style: italic;
+    margin-top: 2;
+    margin-bottom: 5;
 }
 
 .fmain {

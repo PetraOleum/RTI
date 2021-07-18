@@ -1,0 +1,45 @@
+<title>{{ code }}: {{ name }} - Trip Schedule - RTI Anywhere</title>
+
+<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}"  type="image/svg">
+<link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<body>
+
+    <h1 class="stopinfo">Route {{ code }} - Trip Schedule</h1>
+
+    <p class="routename">{{ name }} - ({{ direction }})</p>
+
+    <p id="allstopslink">[<a href="/route/{{ code }}/">All stops on this route</a>]</p>
+
+    <p class="explainer">Warning: stops below may correspond to previous route assigned to this bus.</p>
+
+    {{ table }}
+
+{% if routes is not none and routes|length > 0 %}
+<form id="routeform" action="/route/">
+    <div class="fmain">
+        <div class="fcol">Route:</div>
+        <div class="fcol">
+            <select name="r" id="routeselect">
+                {% for route in routes %}
+                <option value="{{ route }}"
+                {% if route == code%}
+                selected
+                {% endif %}
+                >{{ route }}</option>
+                {% endfor %}
+            </select>
+
+        </div>
+        <div class="fcol"><input type="submit" id="routesubmit" value="Submit"></div>
+    </div>
+</form>
+{% endif %}
+
+<div id="info">
+    <p><a href="/">Home</a> - Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
+</div>
+
+</body>
+
