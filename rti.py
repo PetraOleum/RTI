@@ -32,23 +32,45 @@ patz = gettz("Pacific/Auckland")
 depurl = "https://api.opendata.metlink.org.nz/v1/stop-predictions"
 stoplisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/stops"
 routelisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/routes"
+feedinfourl = "https://api.opendata.metlink.org.nz/v1/gtfs/feed_info"
 
 stopinfo = []
 stopids = {}
+feedinfo = {}
 stopnames = {}
 routelist = {}
 stoplastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 routeslastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
+
+def updateFeedInfo(force=False):
+    global feedinfo
+    nowtime = dt.datetime.now(patz)
+    tstoday = nowtime.strftime("%Y%m%d")
+    if force or "feed_end_date" not in feedinfo or feedinfo["feed_end_date"] < tstoday:
+        req = requests.get(feedinfourl, headers=headers)
+        if req.status_code != 200:
+            print("Failed to update feed_info metadata at {}.".format(
+                nowtime.strftime("%c")))
+            feedinfo["feed_end_date"] = tstoday
+            feedinfo["feed_start_date"] = tstoday
+            return
+        feedinfo = req.json()[0]
+        print("Updated feed_info metadata at {}.".format(nowtime.strftime("%c")))
+
 
 def updateStopInfo(force=False):
     global stopinfo
     global stopids
     global stopnames
     global stoplastupdate
+    updateFeedInfo()
     nowtime = dt.datetime.now(patz)
-    if force or (nowtime - stoplastupdate).days >= 7:
+    if (force or (nowtime - stoplastupdate).days >= 7 or
+        feedinfo["feed_start_date"] > stoplastupdate.strftime("%Y%m%d")):
         req = requests.get(stoplisturl, headers=headers)
         if req.status_code != 200:
+            print("Failed to update stop metadata at {}.".format(
+                nowtime.strftime("%c")))
             return
         stopinfo = req.json()
         stopids = {x["stop_id"]: ind for ind, x in enumerate(stopinfo)}
@@ -59,10 +81,14 @@ def updateStopInfo(force=False):
 def updateRouteInfo(force=False):
     global routelist
     global routeslastupdate
+    updateFeedInfo()
     nowtime = dt.datetime.now(patz)
-    if force or (nowtime - routeslastupdate).days >= 7:
+    if (force or (nowtime - routeslastupdate).days >= 7 or
+        feedinfo["feed_start_date"] > routeslastupdate.strftime("%Y%m%d")):
         req = requests.get(routelisturl, headers=headers)
         if req.status_code != 200:
+            print("Failed to update route metadata at {}.".format(
+                nowtime.strftime("%c")))
             return
         routeinfo = req.json()
         routelist = {x["route_short_name"]: x for x in routeinfo}
