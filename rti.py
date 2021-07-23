@@ -3,9 +3,13 @@ from flask_table import Table, Col, LinkCol
 from dateutil.parser import isoparse
 from dateutil.tz import gettz
 from math import cos, atan, pi, sqrt, log10, floor
+from os.path import exists
+from io import TextIOWrapper as textwrap
+import zipfile
 import datetime as dt
 import requests
 import re
+import csv
 from urllib.parse import quote
 from fuzzywuzzy import fuzz
 
@@ -33,18 +37,92 @@ depurl = "https://api.opendata.metlink.org.nz/v1/stop-predictions"
 stoplisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/stops"
 routelisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/routes"
 feedinfourl = "https://api.opendata.metlink.org.nz/v1/gtfs/feed_info"
-vehposurl = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/vehiclepositions"
 stoptimesurl = "https://api.opendata.metlink.org.nz/v1/gtfs/stop_times"
+zipurl = "https://static.opendata.metlink.org.nz/v1/gtfs/full.zip"
 
 stopinfo = []
 stopids = {}
 feedinfo = {}
+zipinfo = {}
 stopnames = {}
 routelist = {}
-vehpos = {}
+triplist = []
+stoptimeslist = []
+stoppatterns = []
+trippatterns = []
+routetrips = {}
 stoplastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 routeslastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
-vehposlastupdate = dt.datetime.now(patz) - dt.timedelta(minutes=10)
+
+def downloadZipDataset():
+    print("Downloading zip of GTFS metadata")
+    req = requests.get(zipurl)
+    with open("GTFS_full.zip", 'wb') as df:
+        for chunk in req.iter_content(chunk_size=128):
+            df.write(chunk)
+        return True
+    return False
+
+def loadZipDataset():
+    global triplist
+    global stoptimeslist
+    global zipinfo
+    global stoppatterns
+    global trippatterns
+    print("Loading zip of metadata")
+    if not exists("GTFS_full.zip"):
+        return False
+    with zipfile.ZipFile("GTFS_full.zip") as z:
+        znames = z.namelist()
+        if not all(needed_file in znames for needed_file in ["feed_info.txt",
+                                                             "trips.txt",
+                                                             "stop_times.txt",
+                                                             "stop_patterns.txt",
+                                                             "stop_pattern_trips.txt"]):
+            return False
+
+        with textwrap(z.open("trips.txt"), encoding="utf-8") as tripfile:
+            triplist = []
+            triprows = csv.DictReader(tripfile)
+            for row in triprows:
+                triplist.append(row)
+        if len(triplist) == 0:
+            return False
+
+        with textwrap(z.open("stop_times.txt"), encoding="utf-8") as stopfile:
+            stoptimeslist = []
+            stoprows = csv.DictReader(stopfile)
+            for row in stoprows:
+                stoptimeslist.append(row)
+        if len(stoptimeslist) == 0:
+            return False
+
+        with textwrap(z.open("stop_patterns.txt"), encoding="utf-8") as spfile:
+            stoppatterns = []
+            prows = csv.DictReader(spfile)
+            for row in prows:
+                stoppatterns.append(row)
+        if len(stoppatterns) == 0:
+            return False
+
+        with textwrap(z.open("stop_pattern_trips.txt"), encoding="utf-8") as spfile:
+            trippatterns = []
+            prows = csv.DictReader(spfile)
+            for row in prows:
+                trippatterns.append(row)
+        if len(trippatterns) == 0:
+            return False
+
+        with textwrap(z.open("feed_info.txt"), encoding="utf-8") as feedfile:
+            feedrows = csv.DictReader(feedfile)
+            for row in feedrows:
+                zipinfo = row
+
+    if "feed_version" not in zipinfo:
+        return False
+    print("Zip file loaded")
+    return True
+
 
 def updateFeedInfo(force=False):
     global feedinfo
@@ -61,6 +139,22 @@ def updateFeedInfo(force=False):
         feedinfo = req.json()[0]
         print("Updated feed_info metadata at {}, new expiry date: {}.".format(
             nowtime.strftime("%c"), feedinfo["feed_end_date"]))
+    # If the file doesn't exist, download it - stop on fail
+    if not exists("GTFS_full.zip"):
+        print("No metadata file, downloading")
+        if not downloadZipDataset():
+            return
+    # If data file not previously loaded, load it
+    if "feed_version" not in zipinfo:
+        if not loadZipDataset():
+            return
+    # If data file is out of date, redownload it and reload it
+    if zipinfo["feed_start_date"] < feedinfo["feed_start_date"]:
+        print("Old metadata file, downloading")
+        if not downloadZipDataset():
+            return
+        loadZipDataset()
+
 
 
 def updateStopInfo(force=False):
@@ -83,9 +177,11 @@ def updateStopInfo(force=False):
         stoplastupdate = nowtime
         print("Updated stop metadata at {}.".format(nowtime.strftime("%c")))
 
+
 def updateRouteInfo(force=False):
     global routelist
     global routeslastupdate
+    global routetrips
     updateFeedInfo()
     nowtime = dt.datetime.now(patz)
     if (force or (nowtime - routeslastupdate).days >= 7 or
@@ -97,22 +193,12 @@ def updateRouteInfo(force=False):
             return
         routeinfo = req.json()
         routelist = {x["route_short_name"]: x for x in routeinfo}
+        if len(triplist):
+            routetrips = {r: [t["trip_id"] for t in triplist if t["route_id"]
+                              == r] for r in [rv["route_id"] for rv in
+                                              routeinfo]}
         routeslastupdate = nowtime
         print("Updated route metadata at {}.".format(nowtime.strftime("%c")))
-
-def updateVehPos(force=False):
-    global vehpos
-    global vehposlastupdate
-    nowtime = dt.datetime.now(patz)
-    if force or (nowtime - vehposlastupdate).seconds > 60*5:
-        req = requests.get(vehposurl, headers=headers)
-        if req.status_code != 200:
-            print("Failed to update vehicle position data at {}.".format(
-                nowtime.strftime("%c")))
-            return
-        vehpos = req.json()
-        vehposlastupdate = dt.datetime.fromtimestamp(
-            vehpos["header"]["timestamp"], patz)
 
 
 def routeCodeKey(rc):
@@ -187,6 +273,34 @@ def prettyDistance(dist, fig=1):
     return floor(round(dist, fig - 1 -floor(log10(dist))))
 
 
+def tripFromStopPred(spred, tripdata):
+    #servid = spred["service_id"]
+    #if servid not in routelist:
+    #    return None
+    #rid = routelist[servid]["route_id"]
+
+    #print(spred)
+    #stop_pat = [x["stop_pattern_id"] for x in stoppatterns if x["stop_id"] ==
+    #            spred["stop_id"]]
+    #print(len(stop_pat))
+    #tripcand = [x["trip_id"] for x in trippatterns if x["stop_pattern_id"] in
+    #            stop_pat]
+    #print(len(tripcand))
+    #tripcand = [x["trip_id"] for x in triplist if x["route_id"] ==
+    #            routelist[spred["service_id"]]["route_id"]]
+    #print(len(tripcand))
+    #print(stoptimeslist[0])
+    #print(isoparse(spred["arrival"]["aimed"]).strftime("%H:%M:%S"))
+    #tripcand2 = [x["trip_id"] for x in stoptimeslist if x["stop_id"] ==
+    #             spred["stop_id"]]
+    #print(len(tripcand2))
+    #tcl = [trip for trip in tripcand2 if trip in tripcand]
+    #if len(tcl) == 0:
+    #    return None
+    #return tcl[0]
+    return None
+
+
 class TimeTable(Table):
     routeCol = LinkCol("Route", "routeInfo", th_html_attrs={"title": "Route"},
                     url_kwargs=dict(rquery="rname", trip="trip_id"),
@@ -256,13 +370,6 @@ def statusString(service):
     else:
         return status
 
-def tripFromVID(VID):
-    if "entity" in reversed(vehpos):
-        for x in vehpos["entity"]:
-            postripid = x["vehicle"]["trip"]["trip_id"]
-            if (x["vehicle"]["vehicle"]["id"] == VID):
-                return postripid
-    return None
 
 @app.route("/")
 def rti():
@@ -287,17 +394,20 @@ def timetable(stop):
     # return req.json()
     stopname = "Unknown Stop"
     updateStopInfo()
-    updateVehPos()
     if stop in stopids:
         stopname = stopinfo[stopids[stop]]["stop_name"]
     rv = req.json()
     lastup = dt.datetime.now(patz)
     if "departures" in rv:
+        stop_pat = [x["stop_pattern_id"] for x in stoppatterns if x["stop_id"] ==
+                    stop]
+        alltrips = [x["trip_id"] for x in trippatterns if x["stop_pattern_id"] in
+                    stop_pat]
+        atd = [x for x in stoptimeslist if x["stop_id"] == stop and x["trip_id"] in alltrips]
+        print(len(atd))
         ttdat = [{"route": s["service_id"], "rname": s["service_id"],
                   "dest": s["destination"]["name"],
-                  "trip_id": tripFromVID(s["vehicle_id"]) if
-                      "vehicle_id" in s and s["vehicle_id"] is not None
-                      else None,
+                  "trip_id": tripFromStopPred(s, atd),
                   "sched":
                       isoparse(s["departure"]["aimed"]).strftime("%H:%M"),
                   "est": "" if s["departure"]["expected"] is None else
@@ -361,19 +471,18 @@ def routeInfo(rquery):
                                lup=routeslastupdate.strftime("%A %B %-d"),
                                routes=sortedRouteCodes())
     routeinfo = routelist[rquery]
+    print(len([x for x in triplist if x["route_id"] == routeinfo["route_id"]]))
     ra = request.args
     rtrip = ("trip" in ra and ra["trip"] != "" and ra["trip"] != "none")
     slist = []
+    thistripinfo = []
     if rtrip:
-        req = requests.get(stoptimesurl, params={"trip_id": ra["trip"]},
-                           headers=headers)
-        if req.status_code != 200:
-            rtrip = False
-        else:
-            slist = req.json()
-            if len(slist) == 0:
-                rtrip = False
-    
+        thistripinfo = [x for x in triplist if x["route_id"] ==
+                     routeinfo["route_id"] and x["trip_id"] == ra["trip"]]
+        rtrip = len(thistripinfo) > 0
+    if rtrip:
+        slist = [x for x in stoptimeslist if x["trip_id"] == ra["trip"]]
+        rtrip = len(slist) > 0
     route_code = routeinfo["route_short_name"]
     route_name = routeinfo["route_long_name"]
     req = requests.get(stoplisturl, params={"route_id": routeinfo["route_id"]}, headers=headers)
@@ -387,15 +496,6 @@ def routeInfo(rquery):
         return render_template("badroute.html", error="No stops in route",
                                routes=sortedRouteCodes())
     if rtrip:
-        routeslist = [x["stop_id"] for x in rv]
-        if (slist[0]["stop_id"] not in routeslist or slist[-1]["stop_id"] not in
-            routeslist):
-            return render_template("badroute.html", error=
-                                   """Mismatch between stops in route and stops
-                                   in trip. Trip ID may correspond to another
-                                   route assigned to this bus""",
-                                   lup=routeslastupdate.strftime("%A %B %-d"),
-                                   routes=sortedRouteCodes())
         direction = "Outbound" if re.match("^[^_]*__([01])", ra["trip"]).groups()[0] == "0" else "Inbound"
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stopinfo[stopids[stop["stop_id"]]]["parent_station"] if
