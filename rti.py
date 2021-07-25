@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect
+from flask_apscheduler import APScheduler
 from flask_table import Table, Col, LinkCol
 from dateutil.parser import isoparse
 from dateutil.tz import gettz
@@ -370,6 +371,12 @@ class LocationTable(Table):
 
 
 app = Flask(__name__)
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
+
+app.apscheduler.add_job(func=updateFeedInfo, trigger="cron", args=[True],
+                        minute='10', hour='3', id="ufeedinfo")
 
 def stopExtract(code, name):
     z = re.match("{} - (.*)".format(code), name)
