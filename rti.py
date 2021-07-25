@@ -49,7 +49,6 @@ zipinfo = {}
 stopnames = {}
 routelist = {}
 triplist = []
-stoptimeslist = []
 stoptimesdict = {}
 stoppatterns = []
 trippatterns = []
@@ -70,7 +69,6 @@ def downloadZipDataset():
 
 def loadZipDataset():
     global triplist
-    global stoptimeslist
     global zipinfo
     global stoppatterns
     global trippatterns
@@ -105,6 +103,7 @@ def loadZipDataset():
                 triplist.append(row)
         if len(triplist) == 0:
             return False
+        print("done trips")
 
         with textwrap(z.open("stops.txt"), encoding="utf-8") as stopfile:
             stopinfo = []
@@ -119,6 +118,7 @@ def loadZipDataset():
             return False
         else:
             stoplastupdate = nowtime
+        print("done stops")
 
         with textwrap(z.open("routes.txt"), encoding="utf-8") as routefile:
             routeinfo = []
@@ -133,9 +133,9 @@ def loadZipDataset():
             return False
         else:
             routeslastupdate = nowtime
+        print("done routes")
 
         with textwrap(z.open("stop_times.txt"), encoding="utf-8") as stopfile:
-            stoptimeslist = []
             stoptimesdict = {}
             stoprows = csv.DictReader(stopfile)
             for row in stoprows:
@@ -145,7 +145,6 @@ def loadZipDataset():
                          ta[:2] >= '24' else
                          ta, "%H:%M:%S").time()
                 row["pamidnight"] = row["patime"].hour * 60 * 60 + row["patime"].minute * 60 + row["patime"].second
-                stoptimeslist.append(row)
                 sid = row["stop_id"]
                 sdat = stopinfo[stopids[sid]]
                 sip = sdat["parent_station"] is None or sdat["parent_station"] == ""
@@ -154,8 +153,9 @@ def loadZipDataset():
                     stoptimesdict[sid].append(row)
                 else:
                     stoptimesdict[sid] = [row]                    
-        if len(stoptimeslist) == 0:
+        if len(stoptimesdict) == 0:
             return False
+        print("done stoptimes")
 
         #with textwrap(z.open("stop_patterns.txt"), encoding="utf-8") as spfile:
         #    stoppatterns = []
@@ -503,8 +503,7 @@ def routeInfo(rquery):
                      routeinfo["route_id"] and x["trip_id"] == ra["trip"]]
         rtrip = len(thistripinfo) > 0
     if rtrip:
-        slist = [x for x in stoptimeslist if x["trip_id"] == ra["trip"]]
-        rtrip = len(slist) > 0
+        slist = stoptimesdict[ra["trip"]]
     route_code = routeinfo["route_short_name"]
     route_name = routeinfo["route_long_name"]
     req = requests.get(stoplisturl, params={"route_id": routeinfo["route_id"]}, headers=headers)
