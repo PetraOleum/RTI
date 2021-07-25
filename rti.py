@@ -50,6 +50,7 @@ stopnames = {}
 routelist = {}
 triplist = []
 stoptimesdict = {}
+triptimesdict = {}
 stoppatterns = []
 trippatterns = []
 servicedates = {}
@@ -73,6 +74,7 @@ def loadZipDataset():
     global stoppatterns
     global trippatterns
     global stoptimesdict
+    global triptimesdict
     global routelist
     global routetrips
     global stopinfo
@@ -137,6 +139,7 @@ def loadZipDataset():
 
         with textwrap(z.open("stop_times.txt"), encoding="utf-8") as stopfile:
             stoptimesdict = {}
+            triptimesdict = {}
             stoprows = csv.DictReader(stopfile)
             for row in stoprows:
                 ta = row["arrival_time"]
@@ -153,6 +156,10 @@ def loadZipDataset():
                     stoptimesdict[sid].append(row)
                 else:
                     stoptimesdict[sid] = [row]                    
+                if row["trip_id"] in triptimesdict:
+                    triptimesdict[row["trip_id"]].append(row)
+                else:
+                    triptimesdict[row["trip_id"]] = [row]
         if len(stoptimesdict) == 0:
             return False
         print("done stoptimes")
@@ -503,7 +510,7 @@ def routeInfo(rquery):
                      routeinfo["route_id"] and x["trip_id"] == ra["trip"]]
         rtrip = len(thistripinfo) > 0
     if rtrip:
-        slist = stoptimesdict[ra["trip"]]
+        slist = triptimesdict[ra["trip"]]
     route_code = routeinfo["route_short_name"]
     route_name = routeinfo["route_long_name"]
     req = requests.get(stoplisturl, params={"route_id": routeinfo["route_id"]}, headers=headers)
