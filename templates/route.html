@@ -10,9 +10,67 @@
 
     <p class="routename">{{ name }}</p>
 
+    {% if alerts is defined and alerts is not none and alerts|length > 0 %}
+    <p class="stopalerts"><a href="#alerts">View {{ alerts|length }} service alert{% if alerts|length != 1 %}s{% endif %} for this route</a></p>
+    {% endif %}
+
     <p class="lastupdated">Route database last updated {{ lup }}</p>
 
     {{ table }}
+
+    {% if alerts is defined and alerts is not none and alerts|length > 0 %}
+    <hr style="max-width: 350px; margin: 20px auto;"/>
+
+    <h1 class="stopinfo" id="alerts">Relevant alerts for route {{ code }} (<a href="#">back</a>)</h1>
+
+    <div class="alerts">
+        {% for alert in alerts %}
+        <div class='alert effect-{{ alert["effect"] }} cause-{{ alert["cause"] }} severity-{{ alert["severity"] }}' id='alert-{{ alert["id"] }}'>
+            {% if alert["timestamp"] is not none %}
+            <p class="alert-timestamp">{{ alert["timestamp"].strftime("%H:%M %-d %B %Y") }}</p>
+            {% endif %}
+            {% if alert["head"] is not none and alert["head"] != "" %}
+            <p class="alert-header">{{ alert["head"] }}</p>
+            {% endif %}
+            {% if alert["desc"] is not none and alert["desc"] != "" %}
+            <p class="alert-description">{{ alert["desc"] }}</p>
+            {% endif %}
+            {% if alert["start"] is not none and alert["end"] is not none %}
+            <p class="alert-timeframe">Valid from {{ alert["start"].strftime("%H:%M, %A %-d %B") }} to {{ alert["end"].strftime("%H:%M, %A %-d %B") }}</p>
+            {% endif %}
+            <ul>
+            {% if alert["stops"]|length > 0 %}
+            <li class="alert-stops">
+                <strong>Stops:</strong>
+                {% for stop in alert["stops"] %}
+                <span class="alert-li"><a href='/stop/{{ stop }}/'>{{ stop }}</a></span>
+                {% endfor %}
+            </li>
+            {% endif %}
+            {% if alert["routes"]|length > 0 %}
+            <li class="alert-routes">
+                <strong>Routes:</strong>
+                {% for route in alert["routes"] %}
+                <span class="alert-li"><a href='/route/{{ route }}/'>{{ route }}</a></span>
+                {% endfor %}
+            </li>
+            {% endif %}
+            {% if alert["trips"]|length > 0 %}
+            <li class="alert-trips">
+                <strong>Trips:</strong>
+                {% for trip in alert["trips"] %}
+                <span class="alert-li"><a href='/route/?trip={{ trip }}'>(link)</a></span>
+                {% endfor %}
+            </li>
+            {% endif %}
+            </ul>
+            {% if alert["url"] is not none %}
+            <p class="alert-url"><a href='{{ alert["url"] }}' target="_blank" rel="nofollow external">More information</a></p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
 {% if routes is not none and routes|length > 0 %}
 <form id="routeform" action="/route/">

@@ -534,23 +534,29 @@ def routeInfo(rquery):
                           if stop["stop_id"] in stopids else "",
                       "sched": stop["arrival_time"]} for stop in slist]
         rTable = StopTimeTable(rstopsdat)
+        rel_alerts = [alert for alert in alertlist if ra["trip"] in
+                      alert["trips"] or route_code in alert["routes"]]
         return render_template("trip.html", code=route_code, name=route_name,
                                table=rTable if len(rstopsdat) > 0 else "",
                                direction=direction,
-                               routes=sortedRouteCodes(), nalerts =
-                               len(alertlist))
+                               routes=sortedRouteCodes(),
+                               nalerts = len(alertlist), alerts = rel_alerts)
     else:
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stop["parent_station"] if
                       stop["parent_station"] != "" else stop["stop_id"],
                       "stop": stop["stop_name"],
                       "zone": stop["zone_id"]} for stop in rv]
+        all_stops = [s["code"] for s in rstopsdat]
+        rel_alerts = [alert for alert in alertlist if route_code in
+                      alert["routes"] or any([x in alert["stops"] for x in
+                                              all_stops])]
         rTable = StopTable(rstopsdat)
         return render_template("route.html", code=route_code, name=route_name,
                                table=rTable if len(rstopsdat) > 0 else "",
                                lup=routeslastupdate.strftime("%A %B %-d"),
-                               routes=sortedRouteCodes(), nalerts =
-                               len(alertlist))
+                               routes=sortedRouteCodes(),
+                               nalerts = len(alertlist), alerts = rel_alerts)
 
 @app.route("/stop/<string:stop>/nearby/")
 def nearbyStops(stop):
