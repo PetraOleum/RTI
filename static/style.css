@@ -217,9 +217,6 @@ h1 {
 
 .alert p {
     margin: 1px 0;
-    -webkit-hyphens: auto;
-    -ms-hyphens: auto;
-    hyphens: auto;
 }
 
 .alert-timestamp {
