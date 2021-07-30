@@ -167,7 +167,7 @@ h1 {
 }
 
 .alerts {
-    max-width: 95%;
+    max-width: 100vw;
     width: 380px;
     margin: 0 auto;
 }
