@@ -166,9 +166,14 @@ h1 {
     background-color: #f8f8f8;
 }
 
+.alerts {
+    max-width: 100%;
+    width: 380px;
+    margin: 0 auto;
+}
+
 .alert {
     border: 2px black solid;
-    max-width: 350px;
     width: 100%;
     margin: 15px auto;
     padding: 10px;
