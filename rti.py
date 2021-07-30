@@ -49,13 +49,7 @@ zipinfo = {}
 stopnames = {}
 routelist = {}
 triplist = []
-stoptimesdict = {}
-triptimesdict = {}
-stoppatterns = []
-trippatterns = []
-servicedates = {}
 routetrips = {}
-tripservice = {}
 stoplastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 routeslastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 
@@ -71,17 +65,11 @@ def downloadZipDataset():
 def loadZipDataset():
     global triplist
     global zipinfo
-    global stoppatterns
-    global trippatterns
-    global stoptimesdict
-    global triptimesdict
     global routelist
     global routetrips
     global stopinfo
     global stopids
     global stopnames
-    global servicedates
-    global tripservice
     nowtime = dt.datetime.now(patz)
     print("Loading zip of metadata at {}".format(nowtime.strftime("%c")))
     if not exists("GTFS_full.zip"):
@@ -90,12 +78,8 @@ def loadZipDataset():
         znames = z.namelist()
         if not all(needed_file in znames for needed_file in ["feed_info.txt",
                                                              "trips.txt",
-                                                             "stop_times.txt",
-                                                             "stop_patterns.txt",
-                                                             "stop_pattern_trips.txt",
                                                              "routes.txt",
-                                                             "stops.txt",
-                                                             "calendar_dates.txt"]):
+                                                             "stops.txt"]):
             return False
 
         with textwrap(z.open("trips.txt"), encoding="utf-8") as tripfile:
@@ -136,62 +120,6 @@ def loadZipDataset():
         else:
             routeslastupdate = nowtime
         print("done routes")
-
-        with textwrap(z.open("stop_times.txt"), encoding="utf-8") as stopfile:
-            stoptimesdict = {}
-            triptimesdict = {}
-            stoprows = csv.DictReader(stopfile)
-            for row in stoprows:
-                ta = row["arrival_time"]
-                row["patime"] = dt.datetime.strptime("{}{}".format(int(ta[:2]) % 24,
-                                          ta[2:]) if
-                         ta[:2] >= '24' else
-                         ta, "%H:%M:%S").time()
-                row["pamidnight"] = row["patime"].hour * 60 * 60 + row["patime"].minute * 60 + row["patime"].second
-                sid = row["stop_id"]
-                sdat = stopinfo[stopids[sid]]
-                sip = sdat["parent_station"] is None or sdat["parent_station"] == ""
-                sid = sid if sip else sdat["parent_station"]
-                if sid in stoptimesdict:
-                    stoptimesdict[sid].append(row)
-                else:
-                    stoptimesdict[sid] = [row]                    
-                if row["trip_id"] in triptimesdict:
-                    triptimesdict[row["trip_id"]].append(row)
-                else:
-                    triptimesdict[row["trip_id"]] = [row]
-        if len(stoptimesdict) == 0:
-            return False
-        print("done stoptimes")
-
-        #with textwrap(z.open("stop_patterns.txt"), encoding="utf-8") as spfile:
-        #    stoppatterns = []
-        #    prows = csv.DictReader(spfile)
-        #    for row in prows:
-        #        stoppatterns.append(row)
-        #if len(stoppatterns) == 0:
-        #    return False
-
-        #with textwrap(z.open("stop_pattern_trips.txt"), encoding="utf-8") as spfile:
-        #    trippatterns = []
-        #    tripservice = {}
-        #    prows = csv.DictReader(spfile)
-        #    for row in prows:
-        #        trippatterns.append(row)
-        #        tripservice[row["trip_id"]] = row["stop_pattern_id"]
-        #if len(trippatterns) == 0:
-        #    return False
-
-        #with textwrap(z.open("calendar_dates.txt"), encoding="utf-8") as calfile:
-        #    servicedates = {}
-        #    calrows = csv.DictReader(calfile)
-        #    for row in calrows:
-        #        if row["service_id"] in servicedates:
-        #            servicedates[row["service_id"]].append(row["date"])
-        #        else:
-        #            servicedates[row["service_id"]] = [row["date"]]
-        #if len(servicedates) == 0:
-        #    return False
 
         with textwrap(z.open("feed_info.txt"), encoding="utf-8") as feedfile:
             feedrows = csv.DictReader(feedfile)
@@ -308,34 +236,6 @@ def prettyDistance(dist, fig=1):
     return floor(round(dist, fig - 1 -floor(log10(dist))))
 
 
-def tripFromStopPred(spred, tripdata):
-    servid = spred["service_id"]
-    if servid not in routelist:
-        return None
-    expraw = spred["arrival"]["aimed"] if ("arrival" in spred and "aimed" in
-                                            spred["arrival"] and
-                                            spred["arrival"]["aimed"] is not
-                                            None) else spred["departure"]["aimed"]
-    expdt = isoparse(expraw)
-    exptime = expdt.time()
-    expdate = expdt.date()
-    expdateshort = expdate.strftime("%Y%m%d")
-    expmid = exptime.hour * 60 * 60 + exptime.minute * 60 + exptime.second
-    rid = routelist[servid]["route_id"]
-    rtrips = routetrips[rid]
-    tripcand = [trip for trip in tripdata if trip["trip_id"] in rtrips]
-    if len(tripcand) == 0:
-        return None
-    postimes = [trip for trip in tripcand if abs(trip["pamidnight"] - expmid) <
-               30]
-    if len(postimes) == 0:
-        return None
-    if len(postimes) == 1:
-        return postimes[0]["trip_id"]
-    postimes.sort(key = lambda x: abs(x["pamidnight"] - expmid))
-    return postimes[0]["trip_id"]
-
-
 class TimeTable(Table):
     routeCol = LinkCol("Route", "routeInfo", th_html_attrs={"title": "Route"},
                     url_kwargs=dict(rquery="rname", trip="trip_id"),
@@ -436,10 +336,10 @@ def timetable(stop):
     rv = req.json()
     lastup = dt.datetime.now(patz)
     if "departures" in rv:
-        thisstoptrips = stoptimesdict[stop]
         ttdat = [{"route": s["service_id"], "rname": s["service_id"],
                   "dest": s["destination"]["name"],
-                  "trip_id": tripFromStopPred(s, thisstoptrips),
+                  "trip_id": s["trip_id"] if "trip_id" in s and s["trip_id"] !=
+                      False and s["trip_id"] != "false" else None,
                   "sched":
                       isoparse(s["departure"]["aimed"]).strftime("%H:%M"),
                   "est": "" if s["departure"]["expected"] is None else
@@ -488,10 +388,19 @@ def stopsearch():
 @app.route("/route/")
 def ttSearch():
     ra = request.args
+    if "trip" in ra:
+        thisroute = [x["route_id"] for x in triplist if x["trip_id"] ==
+                     ra["trip"]]
+        if len(thisroute) == 1:
+            rnums = [x["route_short_name"] for x in routelist.values() if
+                     x["route_id"] == thisroute[0]]
+            if len(rnums) == 1:
+                return redirect("/route/{}/?trip={}".format(rnums[0],
+                                                            ra["trip"]))
     if "r" in ra:
         return redirect("/route/{}/".format(ra["r"].strip()), 302, None)
     else:
-        return redirect("/", 302, None)
+        return redirect("/", 303, None)
 
 
 @app.route("/route/<string:rquery>/")
@@ -510,7 +419,12 @@ def routeInfo(rquery):
                      routeinfo["route_id"] and x["trip_id"] == ra["trip"]]
         rtrip = len(thistripinfo) > 0
     if rtrip:
-        slist = triptimesdict[ra["trip"]]
+        req = requests.get(stoptimesurl, params={"trip_id": ra["trip"]},
+                           headers=headers)
+        if req.status_code != 200:
+            rtrip = False
+        else:
+            slist = req.json()
     route_code = routeinfo["route_short_name"]
     route_name = routeinfo["route_long_name"]
     req = requests.get(stoplisturl, params={"route_id": routeinfo["route_id"]}, headers=headers)
@@ -534,7 +448,7 @@ def routeInfo(rquery):
                           if stop["stop_id"] in stopids else "",
                       "zone": stopinfo[stopids[stop["stop_id"]]]["zone_id"]
                           if stop["stop_id"] in stopids else "",
-                      "sched": stop["patime"].strftime("%H:%M")} for stop in slist]
+                      "sched": stop["arrival_time"]} for stop in slist]
         rTable = StopTimeTable(rstopsdat)
         return render_template("trip.html", code=route_code, name=route_name,
                                table=rTable if len(rstopsdat) > 0 else "",
