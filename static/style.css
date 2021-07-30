@@ -166,17 +166,12 @@ h1 {
     background-color: #f8f8f8;
 }
 
-.alerts {
-    max-width: 100vw;
-    width: 380px;
-    margin: 0 auto;
-}
-
 .alert {
     border: 2px black solid;
-    width: 100%;
+    max-width: 400px;
     margin: 15px auto;
     padding: 10px;
+    border-radius: 0;
 }
 
 .alert.effect-no-service {
@@ -216,10 +211,14 @@ h1 {
 }
 
 .alert.severity-info {
+    border-radius: 10px;
 }
 
 .alert p {
     margin: 1px 0;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+    hyphens: auto;
 }
 
 .alert-timestamp {
@@ -258,6 +257,7 @@ p.alert-description {
 .alert ul {
     margin: 0;
     padding-left: 17px;
+    list-style: disclosure-closed;
 }
 
 li.alert-stops, li.alert-trips, li.alert-routes {
