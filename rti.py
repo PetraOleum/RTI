@@ -228,7 +228,7 @@ def updateAlerts(force=False):
             } for a in talerts["entity"] if "alert" in a
         ]
         alertslastupdate = nowtime
-        print("Updated alerts at {}".format(dt.datetime.now(patz).strftime("%c")))
+
 
 updateFeedInfo(True)
 updateAlerts(True)
