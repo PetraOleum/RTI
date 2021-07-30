@@ -173,10 +173,10 @@ h1 {
 }
 
 .alert {
+    border: 2px black solid;
     width: 100%;
     margin: 15px auto;
     padding: 10px;
-    border-radius: 0;
 }
 
 .alert.effect-no-service {
@@ -216,7 +216,6 @@ h1 {
 }
 
 .alert.severity-info {
-    border-radius: 10px;
 }
 
 .alert p {
