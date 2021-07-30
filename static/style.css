@@ -24,6 +24,12 @@ h1 {
     margin: 5 0;
 }
 
+.stopalerts {
+    text-align: center;
+    margin: 2px;
+    font-size: 0.8em;
+}
+
 #zone {
     text-align: center;
     margin: 0.5;
@@ -150,4 +156,111 @@ h1 {
     font-style: italic;
     font-size: 0.95em;
     margin: 0;
+}
+
+.alerts .alert:nth-child(2n) {
+    background-color: #f0f0f0;
+}
+
+.alerts .alert:nth-child(2n - 1) {
+    background-color: #f8f8f8;
+}
+
+.alert {
+    border: 2px black solid;
+    max-width: 380px;
+    width: 100%;
+    margin: 15px auto;
+    padding: 10px;
+    border-radius: 0;
+}
+
+.alert.effect-no-service {
+    border-color: black;
+}
+
+.alert.effect-reduced-service {
+    border-color: black;
+}
+
+.alert.effect-significant-delays {
+    border-color: black;
+}
+
+.alert.effect-detour {
+    border-color: black;
+}
+
+.alert.effect-additional-service {
+    border-color: #b0b0b0;
+}
+
+.alert.effect-modified-service {
+    border-color: #909090;
+}
+
+.alert.effect-other-effect {
+    border-color: black;
+}
+
+.alert.effect-unknown-effect {
+    border-color: #b0b0b0;
+}
+
+.alert.effect-stop-moved {
+    border-color: #303030;
+}
+
+.alert.severity-info {
+    border-radius: 10px;
+}
+
+.alert p {
+    margin: 1px 0;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+    hyphens: auto;
+}
+
+.alert-timestamp {
+    font-size: 0.9em;
+    text-align: right;
+}
+
+.alert-timeframe {
+    font-size: 0.8em;
+    font-style: italic;
+}
+
+.alert-header {
+    font-weight: bold;
+}
+
+.alert-url {
+    text-align: right;
+}
+
+p.alert-description {
+    font-size: 0.9em;
+    margin: 5px 10px;
+    text-align: justify;
+    text-justify: inter-word;
+}
+
+.alert-li::after {
+    content: ", ";
+}
+
+.alert-li:last-child::after {
+    content: "";
+}
+
+.alert ul {
+    margin: 0;
+    padding-left: 17px;
+    list-style: disclosure-closed;
+}
+
+li.alert-stops, li.alert-trips, li.alert-routes {
+    margin: 3px 0;
 }

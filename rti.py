@@ -40,6 +40,7 @@ stoplisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/stops"
 routelisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/routes"
 feedinfourl = "https://api.opendata.metlink.org.nz/v1/gtfs/feed_info"
 stoptimesurl = "https://api.opendata.metlink.org.nz/v1/gtfs/stop_times"
+alertsurl = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/servicealerts"
 zipurl = "https://static.opendata.metlink.org.nz/v1/gtfs/full.zip"
 
 stopinfo = []
@@ -48,10 +49,14 @@ feedinfo = {}
 zipinfo = {}
 stopnames = {}
 routelist = {}
+servroute = {}
 triplist = []
+alltrips = []
+alertlist = []
 routetrips = {}
 stoplastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 routeslastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
+alertslastupdate = dt.datetime.now(patz) - dt.timedelta(seconds=60*20)
 
 def downloadZipDataset():
     print("Downloading zip of GTFS metadata")
@@ -64,12 +69,14 @@ def downloadZipDataset():
 
 def loadZipDataset():
     global triplist
+    global alltrips
     global zipinfo
     global routelist
     global routetrips
     global stopinfo
     global stopids
     global stopnames
+    global servroute
     nowtime = dt.datetime.now(patz)
     print("Loading zip of metadata at {}".format(nowtime.strftime("%c")))
     if not exists("GTFS_full.zip"):
@@ -87,6 +94,7 @@ def loadZipDataset():
             triprows = csv.DictReader(tripfile)
             for row in triprows:
                 triplist.append(row)
+            alltrips = [trip["trip_id"] for trip in triplist]
         if len(triplist) == 0:
             return False
         print("done trips")
@@ -112,6 +120,7 @@ def loadZipDataset():
             for row in routerows:
                 routeinfo.append(row)
             routelist = {x["route_short_name"]: x for x in routeinfo}
+            servroute = {x["route_id"]: x["route_short_name"] for x in routeinfo}
             routetrips = {r: [t["trip_id"] for t in triplist if t["route_id"]
                               == r] for r in [rv["route_id"] for rv in
                                               routeinfo]}
@@ -163,7 +172,66 @@ def updateFeedInfo(force=False):
             return
         loadZipDataset()
 
+def updateAlerts(force=False):
+    global alertlist
+    global alertslastupdate
+    nowtime = dt.datetime.now(patz)
+    if force or (nowtime - alertslastupdate).seconds >= 60 * 5:
+        req = requests.get(alertsurl, headers=headers)
+        if req.status_code != 200:
+            return
+        talerts = req.json()
+        if "entity" not in talerts:
+            return
+        alertlist = [{
+            "effect": a["alert"].get("effect").lower().replace("_", "-") if "effect" in
+                a["alert"] else None,
+            "cause": a["alert"].get("cause").lower().replace("_", "-") if "cause" in a["alert"]
+                else None,
+            "severity": a["alert"].get("severity_level").lower().replace(
+                "_", "-") if "severity_level" in a["alert"] else None,
+            "desc":
+            a["alert"]["description_text"]["translation"][
+                0].get("text").replace("\r", " ").replace("\n", " ") if
+                "description_text" in a["alert"] and "translation" in a["alert"]["description_text"]
+                and len(a["alert"]["description_text"]["translation"]) > 0 else None,
+            "head": a["alert"]["header_text"]["translation"][
+                0].get("text").replace("\r", " ").replace("\n", " ") if
+                "header_text" in a["alert"] and "translation" in a["alert"]["header_text"]
+                and len(a["alert"]["header_text"]["translation"]) > 0 else None,
+            "routes": [servroute[e["route_id"]] for e in a["alert"]["informed_entity"] if
+                       "route_id" in e and e["route_id"] in servroute] if "informed_entity" in a["alert"] else [],
+            "stops": [e["stop_id"] for e in a["alert"]["informed_entity"] if
+                       "stop_id" in e] if "informed_entity" in a["alert"] else [],
+            "trips": [e["trip"].get("trip_id") for e in a["alert"]["informed_entity"] if
+                       "trip" in e and "trip_id" in e["trip"] and
+                      e["trip"]["trip_id"] in alltrips] if "informed_entity" in a["alert"] else [],
+            "start":
+                dt.datetime.fromtimestamp(a["alert"]["active_period"][0][
+                    "start"], patz)
+                if "active_period" in a["alert"] and
+                len(a["alert"]["active_period"]) > 0 and "start" in
+                a["alert"]["active_period"][0] else
+                None,
+            "end":
+                dt.datetime.fromtimestamp(a["alert"]["active_period"][0][
+                    "end"], patz)
+                if "active_period" in a["alert"] and
+                len(a["alert"]["active_period"]) > 0 and "end" in
+                a["alert"]["active_period"][0] else
+                None,
+            "url": a["alert"]["url"]["translation"][0].get("text") if "url" in
+                a["alert"] and "translation" in a["alert"]["url"] and
+                len(a["alert"]["url"]["translation"]) > 0 else None,
+            "id": a.get("id"),
+            "timestamp": isoparse(a["timestamp"]) if "timestamp" in a else None
+            } for a in talerts["entity"] if "alert" in a
+        ]
+        alertslastupdate = nowtime
+        print("Updated alerts at {}".format(dt.datetime.now(patz).strftime("%c")))
+
 updateFeedInfo(True)
+updateAlerts(True)
 
 def routeCodeKey(rc):
     if len(rc) < 2:
@@ -283,7 +351,9 @@ scheduler.init_app(app)
 scheduler.start()
 
 app.apscheduler.add_job(func=updateFeedInfo, trigger="cron", args=[True],
-                        minute='10', hour='3', id="ufeedinfo")
+                        minute='11', hour='3', id="ufeedinfo")
+app.apscheduler.add_job(func=updateAlerts, trigger="cron", args=[True],
+                        minute='*/5', id="ualerts")
 
 def stopExtract(code, name):
     z = re.match("{} - (.*)".format(code), name)
@@ -311,7 +381,8 @@ def statusString(service):
 
 @app.route("/")
 def rti():
-    return render_template("main.html", routes=sortedRouteCodes())
+    return render_template("main.html", routes=sortedRouteCodes(), nalerts =
+                           len(alertlist))
 
 
 @app.route("/stop/")
@@ -328,7 +399,8 @@ def timetable(stop):
     req = requests.get(depurl, params={"stop_id": stop}, headers=headers)
     if req.status_code != 200:
         # return "Error {}".format(req.status_code)
-        return render_template("nostop.html", error=req.status_code)
+        return render_template("nostop.html", error=req.status_code, nalerts =
+                           len(alertlist))
     # return req.json()
     stopname = "Unknown Stop"
     if stop in stopids:
@@ -349,14 +421,21 @@ def timetable(stop):
                   "status": statusString(s)}
                  for s in rv["departures"]]
         tTable = TimeTable(ttdat)
+        seen_routes = [t["route"] for t in ttdat]
+        seen_trips = [t["trip_id"] for t in ttdat]
+        rel_alerts = [a for a in alertlist if
+                      stop in a["stops"] or
+                      any([x in a["routes"] for x in seen_routes]) or
+                      any([x in a["trips"] for x in seen_trips])]
     else:
         ttdat = []
+        rel_alerts = []
     return render_template("stop.html", stopnumber=stop,
                            stopname=stopname,
                            zone=rv["farezone"] if "farezone" in rv else "?",
                            lup=lastup.strftime("%H:%M:%S, %A %B %-d"),
                            table=tTable if len(ttdat) > 0 else None,
-                           notices=[n["LineNote"] for n in rv["Notices"]] if "Notices" in rv else None)
+                           alerts=rel_alerts, nalerts = len(alertlist))
 
 
 @app.route("/search/")
@@ -364,13 +443,15 @@ def stopsearch():
     query = request.args["q"].strip() if "q" in request.args else ""
     if query == "":
         return render_template("badsearch.html",
-                               lup=stoplastupdate.strftime("%A %B %-d"))
+                               lup=stoplastupdate.strftime("%A %B %-d"), nalerts =
+                               len(alertlist))
     qlower = query.lower()
     ranknames = [(name, fuzz.token_set_ratio(name.lower(), qlower)) for name in
                list(stopnames.keys())]
     toprank = [tup for tup in ranknames if tup[1] > 40]
     if len(toprank) == 0:
-        return render_template("badsearch.html")
+        return render_template("badsearch.html", nalerts =
+                           len(alertlist))
     toprank.sort(reverse=True, key=lambda a: a[1])
     stdat = [{"code": stopnames[name], "sms": stopinfo[stopids[stopnames[name]]]["parent_station"] if
               stopinfo[stopids[stopnames[name]]]["parent_station"] != "" else stopnames[name], "stop":
@@ -382,7 +463,8 @@ def stopsearch():
     return render_template("search.html", searchstring=query,
                            numres=len(stdat),
                            lup=stoplastupdate.strftime("%A %B %-d"),
-                           table=sTable if len(stdat) > 0 else "")
+                           table=sTable if len(stdat) > 0 else "", nalerts =
+                           len(alertlist))
 
 
 @app.route("/route/")
@@ -391,12 +473,11 @@ def ttSearch():
     if "trip" in ra:
         thisroute = [x["route_id"] for x in triplist if x["trip_id"] ==
                      ra["trip"]]
-        if len(thisroute) == 1:
-            rnums = [x["route_short_name"] for x in routelist.values() if
-                     x["route_id"] == thisroute[0]]
-            if len(rnums) == 1:
-                return redirect("/route/{}/?trip={}".format(rnums[0],
-                                                            ra["trip"]))
+        print(ra["trip"])
+        print(thisroute)
+        if len(thisroute) > 0:
+            return redirect("/route/{}/?trip={}".format(servroute[thisroute[0]],
+                                                        ra["trip"]))
     if "r" in ra:
         return redirect("/route/{}/".format(ra["r"].strip()), 302, None)
     else:
@@ -408,7 +489,8 @@ def routeInfo(rquery):
     if rquery == "" or rquery not in routelist:
         return render_template("badroute.html", error="No such route",
                                lup=routeslastupdate.strftime("%A %B %-d"),
-                               routes=sortedRouteCodes())
+                               routes=sortedRouteCodes(), nalerts =
+                               len(alertlist))
     routeinfo = routelist[rquery]
     ra = request.args
     rtrip = ("trip" in ra and ra["trip"] != "" and ra["trip"] != "none")
@@ -432,11 +514,13 @@ def routeInfo(rquery):
         # return "Error {}".format(req.status_code)
         return render_template("badroute.html", error=req.status_code,
                                lup=routeslastupdate.strftime("%A %B %-d"),
-                               routes=sortedRouteCodes())
+                               routes=sortedRouteCodes(), nalerts =
+                               len(alertlist))
     rv = req.json()
     if len(rv) == 0:
         return render_template("badroute.html", error="No stops in route",
-                               routes=sortedRouteCodes())
+                               routes=sortedRouteCodes(), nalerts =
+                               len(alertlist))
     if rtrip:
         direction = "Outbound" if re.match("^[^_]*__([01])", ra["trip"]).groups()[0] == "0" else "Inbound"
         rstopsdat = [{"code": stop["stop_id"],
@@ -453,7 +537,8 @@ def routeInfo(rquery):
         return render_template("trip.html", code=route_code, name=route_name,
                                table=rTable if len(rstopsdat) > 0 else "",
                                direction=direction,
-                               routes=sortedRouteCodes())
+                               routes=sortedRouteCodes(), nalerts =
+                               len(alertlist))
     else:
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stop["parent_station"] if
@@ -464,14 +549,16 @@ def routeInfo(rquery):
         return render_template("route.html", code=route_code, name=route_name,
                                table=rTable if len(rstopsdat) > 0 else "",
                                lup=routeslastupdate.strftime("%A %B %-d"),
-                               routes=sortedRouteCodes())
+                               routes=sortedRouteCodes(), nalerts =
+                               len(alertlist))
 
 @app.route("/stop/<string:stop>/nearby/")
 def nearbyStops(stop):
     if stop == "" or stop not in stopids:
         return render_template("badnearby.html",
                                error = "Stop not found",
-                               lup=stoplastupdate.strftime("%A %B %-d"))
+                               lup=stoplastupdate.strftime("%A %B %-d"), nalerts =
+                           len(alertlist))
     thisstop = stopinfo[stopids[stop]]
     stopDistances = [{"id": x["stop_id"], 
                       "parent": x["parent_station"],
@@ -488,7 +575,8 @@ def nearbyStops(stop):
     if len(stopDistances) == 0:
         return render_template("badnearby.html",
                                error = "No nearby stops found",
-                               lup=stoplastupdate.strftime("%A %B %-d"))
+                               lup=stoplastupdate.strftime("%A %B %-d"), nalerts =
+                               len(alertlist))
     stopDistances.sort(key=lambda x: x["dist2"])
     nstopsDat = [{"code": x["id"],
                   "sms": x["parent"] if x["parent"] != "" else
@@ -504,9 +592,14 @@ def nearbyStops(stop):
                            name=thisstop["stop_name"],
                            zone=thisstop["zone_id"],
                            lup=stoplastupdate.strftime("%A %B %-d"),
-                           table=nTable)
+                           table=nTable, nalerts =
+                           len(alertlist))
 
-
+@app.route("/alerts/")
+def showAllAlerts():
+    return render_template("alerts.html", alerts = alertlist, lup =
+                           alertslastupdate.strftime("%H:%M, %A %B %-d"), nalerts =
+                           len(alertlist))
 
 
 if __name__ == "__main__":

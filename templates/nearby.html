@@ -24,7 +24,7 @@
 
 
     <div id="info">
-        <p><a href="/">Home</a> - Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
+        <p><a href="/">Home</a> {% if nalerts is defined %} - <a href="/alerts/">{{ nalerts }} active service alerts</a>{% endif %} - Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
     </div>
 
 </body>

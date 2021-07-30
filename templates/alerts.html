@@ -1,4 +1,4 @@
-<title>{{ stopnumber }} {{ stopname }} - Timetable - RTI Anywhere</title>
+<title>{{ alerts|length }} Active Service Alerts - RTI Anywhere</title>
 
 <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}"  type="image/svg">
 <link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
@@ -6,26 +6,13 @@
 
 <body>
 
-    <h1 class="stopinfo">Stop {{ stopnumber }}: {{ stopname }}</h1>
-
-    {% if alerts is defined and alerts is not none and alerts|length > 0 %}
-    <p class="stopalerts"><a href="#alerts">View {{ alerts|length }} service alert{% if alerts|length != 1 %}s{% endif %} for this stop</a></p>
-    {% endif %}
-
-    <p id="zone">Zone {{ zone }} | <a href="/stop/{{ stopnumber}}/nearby/">Nearby Stops</a></p>
+    <h1 class="alerts">{{ alerts|length }} Active Service Alerts</h1>
 
     <p class="lastupdated">Last updated at {{ lup }}</p>
 
-    {% if table is not none %}
-        {{ table }}
+    {% if alerts|length == 0 %}
+        <p class="no-table" style="margin: 5 auto; text-align: center; font-weight: bold;">No alerts.</p>
     {% else %}
-        <p class="no-table" style="margin: 5 auto; text-align: center; font-weight: bold;">No services.</p>
-    {% endif %}
-
-    {% if alerts is defined and alerts is not none and alerts|length > 0 %}
-    <hr style="max-width: 350px; margin: 20px auto;"/>
-
-    <h1 class="stopinfo" id="alerts">Relevant alerts for stop {{ stopname }} (<a href="#">back</a>)</h1>
 
     <div class="alerts">
         {% for alert in alerts %}
@@ -59,6 +46,14 @@
                 {% endfor %}
             </li>
             {% endif %}
+            {% if alert["trips"]|length > 0 %}
+            <li class="alert-trips">
+                <strong>Trips:</strong>
+                {% for trip in alert["trips"] %}
+                <span class="alert-li"><a href='/route/?trip={{ trip }}'>(link)</a></span>
+                {% endfor %}
+            </li>
+            {% endif %}
             </ul>
             {% if alert["url"] is not none %}
             <p class="alert-url"><a href='{{ alert["url"] }}' target="_blank" rel="nofollow external">More information</a></p>
@@ -67,15 +62,8 @@
         {% endfor %}
     </div>
     {% endif %}
-    
-    <form id="stopform" action="/stop/">
-        <div class="fmain">
-            <div class="fcol">Bus stop number:</div>
-            <div class="fcol"><input type="number" id="stopnumber" name="stopnum" value="{{ stopnumber }}" max="9999" min="0"></div>
-            <div class="fcol"><input type="submit" id="stopsubmit" value="Submit"></div>
-        </div>
-    </form>
 
+    <hr style="max-width: 350px; margin: 20px auto;"/>
 
     <div id="info">
         <p><a href="/">Home</a> {% if nalerts is defined %} - <a href="/alerts/">{{ nalerts }} active service alerts</a>{% endif %} - Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
