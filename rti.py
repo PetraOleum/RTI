@@ -473,8 +473,6 @@ def ttSearch():
     if "trip" in ra:
         thisroute = [x["route_id"] for x in triplist if x["trip_id"] ==
                      ra["trip"]]
-        print(ra["trip"])
-        print(thisroute)
         if len(thisroute) > 0:
             return redirect("/route/{}/?trip={}".format(servroute[thisroute[0]],
                                                         ra["trip"]))

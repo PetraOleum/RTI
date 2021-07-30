@@ -168,7 +168,7 @@ h1 {
 
 .alert {
     border: 2px black solid;
-    max-width: 380px;
+    max-width: 350px;
     width: 100%;
     margin: 15px auto;
     padding: 10px;
@@ -255,7 +255,6 @@ p.alert-description {
 .alert ul {
     margin: 0;
     padding-left: 17px;
-    list-style: disclosure-closed;
 }
 
 li.alert-stops, li.alert-trips, li.alert-routes {
