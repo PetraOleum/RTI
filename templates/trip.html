@@ -14,14 +14,21 @@
     <p class="stopalerts"><a href="#alerts">View {{ alerts|length }} service alert{% if alerts|length != 1 %}s{% endif %} for this trip</a></p>
     {% endif %}
 
-    <p id="allstopslink">[<a href="/route/{{ code }}/">All stops on this route</a>]</p>
+    <p id="allstopslink">[<a href="/route/{{ code }}/">All stops associated with route {{ code }}</a>]</p>
 
     {{ table }}
+
+    {% if datetable is defined and datetable is not none %}
+    <hr style="max-width: 350px; margin: 20px auto;"/>
+
+    <h1 id="tripdates">Currently valid dates for this trip code</h1>
+    {{ datetable }}
+    {% endif %}
 
     {% if alerts is defined and alerts is not none and alerts|length > 0 %}
     <hr style="max-width: 350px; margin: 20px auto;"/>
 
-    <h1 class="stopinfo" id="alerts">Relevant alerts for route {{ code }} (<a href="#">back</a>)</h1>
+    <h1 class="stopinfo" id="alerts">Relevant alerts for route {{ code }}</h1>
 
     <div class="alerts">
         {% for alert in alerts %}

@@ -54,9 +54,25 @@ triplist = []
 alltrips = []
 alertlist = []
 routetrips = {}
+trip_serv = {}
+caldates = {}
+agencies = {}
 stoplastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 routeslastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 alertslastupdate = dt.datetime.now(patz) - dt.timedelta(seconds=60*20)
+
+def servfromtrip(trip_id, ag_ids):
+    for ag in ag_ids:
+        agpos = trip_id.find("__" + ag + "__")
+        if agpos == -1:
+            continue
+        remd = trip_id[agpos + len(ag) + 4:]
+        if ag in ["RAIL", "WCCL", "EBYW"]:
+            return remd.replace("_", " ")
+        else:
+            return remd[:int(len(remd) / 2 - 1)].replace("__", "_")
+    return None
+
 
 def downloadZipDataset():
     print("Downloading zip of GTFS metadata")
@@ -77,6 +93,11 @@ def loadZipDataset():
     global stopids
     global stopnames
     global servroute
+    global routeslastupdate
+    global stoplastupdate
+    global trip_serv
+    global caldates
+    global agencies
     nowtime = dt.datetime.now(patz)
     print("Loading zip of metadata at {}".format(nowtime.strftime("%c")))
     if not exists("GTFS_full.zip"):
@@ -86,8 +107,20 @@ def loadZipDataset():
         if not all(needed_file in znames for needed_file in ["feed_info.txt",
                                                              "trips.txt",
                                                              "routes.txt",
-                                                             "stops.txt"]):
+                                                             "stops.txt",
+                                                             "agency.txt",
+                                                             "calendar_dates.txt",
+                                                             "stop_pattern_trips.txt"]):
             return False
+
+        with textwrap(z.open("agency.txt"), encoding="utf-8") as agfile:
+            agencies = {}
+            agrows = csv.DictReader(agfile)
+            for row in agrows:
+                agencies[row["agency_id"]] = row
+        if len(agencies) == 0:
+            return False
+        print("done agencies")
 
         with textwrap(z.open("trips.txt"), encoding="utf-8") as tripfile:
             triplist = []
@@ -129,6 +162,34 @@ def loadZipDataset():
         else:
             routeslastupdate = nowtime
         print("done routes")
+
+        with textwrap(z.open(
+            "calendar_dates.txt"), encoding="utf-8") as calfile:
+            calrows = csv.DictReader(calfile)
+            caldates = {}
+            for row in calrows:
+                if row["exception_type"] != "1":
+                    continue
+                elif row["service_id"] in caldates:
+                    caldates[row["service_id"]].append(dt.datetime.strptime(row["date"],
+                                                                          "%Y%m%d"))
+                else:
+                    caldates[row["service_id"]] = [dt.datetime.strptime(row["date"], "%Y%m%d")]
+        if len(caldates) == 0:
+            return False
+        print("done calendar")
+
+        with textwrap(z.open(
+            "stop_pattern_trips.txt"), encoding="utf-8") as spfile:
+            trip_serv = {}
+            sptrows = csv.DictReader(spfile)
+            for row in sptrows:
+                trip_serv[row["trip_id"]] = servfromtrip(row["trip_id"],
+                                                         agencies.keys())
+        if len(trip_serv) == 0:
+            return False
+        print("done stop patterns")
+
 
         with textwrap(z.open("feed_info.txt"), encoding="utf-8") as feedfile:
             feedrows = csv.DictReader(feedfile)
@@ -345,6 +406,13 @@ class LocationTable(Table):
     classes = ["cleantable"]
 
 
+class DateTable(Table):
+    day = Col("Day")
+    date = Col("Date", td_html_attrs = {"class": "datecol"})
+    table_id = "datetable"
+    classes = ["cleantable"]
+
+
 app = Flask(__name__)
 scheduler = APScheduler()
 scheduler.init_app(app)
@@ -509,7 +577,6 @@ def routeInfo(rquery):
     route_name = routeinfo["route_long_name"]
     req = requests.get(stoplisturl, params={"route_id": routeinfo["route_id"]}, headers=headers)
     if req.status_code != 200:
-        # return "Error {}".format(req.status_code)
         return render_template("badroute.html", error=req.status_code,
                                lup=routeslastupdate.strftime("%A %B %-d"),
                                routes=sortedRouteCodes(), nalerts =
@@ -520,6 +587,12 @@ def routeInfo(rquery):
                                routes=sortedRouteCodes(), nalerts =
                                len(alertlist))
     if rtrip:
+        dates = caldates.get(trip_serv.get(ra["trip"]))
+        datetable = None
+        if dates is not None and len(dates) > 0:
+            datetable = DateTable([{"day": date.strftime("%A"), "date":
+                                    date.strftime("%-d %B %Y")} for date in
+                                   dates])
         direction = "Outbound" if re.match("^[^_]*__([01])", ra["trip"]).groups()[0] == "0" else "Inbound"
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stopinfo[stopids[stop["stop_id"]]]["parent_station"] if
@@ -538,7 +611,8 @@ def routeInfo(rquery):
                                table=rTable if len(rstopsdat) > 0 else "",
                                direction=direction,
                                routes=sortedRouteCodes(),
-                               nalerts = len(alertlist), alerts = rel_alerts)
+                               nalerts = len(alertlist), alerts = rel_alerts,
+                               datetable=datetable)
     else:
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stop["parent_station"] if

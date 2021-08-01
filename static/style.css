@@ -263,3 +263,21 @@ p.alert-description {
 li.alert-stops, li.alert-trips, li.alert-routes {
     margin: 3px 0;
 }
+
+#tripdates {
+    text-align: center;
+    margin-bottom: 5px;
+}
+
+#datetable {
+    font-size: 0.9em;
+    margin-bottom: 10px;
+}
+
+#datetable th, #datetable td {
+    padding: 10px 10px 5px 10px;
+}
+
+.datecol {
+    text-align: right;
+}
