@@ -67,10 +67,14 @@ def servfromtrip(trip_id, ag_ids):
         if agpos == -1:
             continue
         remd = trip_id[agpos + len(ag) + 4:]
+        ext = ""
+        if re.search("[^_]_\d$", remd) is not None:
+            ext = remd[-2:]
+            remd = remd[:-2]
         if ag in ["RAIL", "WCCL", "EBYW"]:
-            return remd.replace("_", " ")
+            return remd.replace("_", " ") + ext
         else:
-            return remd[:int(len(remd) / 2 - 1)].replace("__", "_")
+            return remd[:int(len(remd) / 2 - 1)].replace("__", "_") + ext
     return None
 
 
@@ -190,7 +194,6 @@ def loadZipDataset():
             return False
         print("done stop patterns")
 
-
         with textwrap(z.open("feed_info.txt"), encoding="utf-8") as feedfile:
             feedrows = csv.DictReader(feedfile)
             for row in feedrows:
@@ -227,11 +230,13 @@ def updateFeedInfo(force=False):
         if not loadZipDataset():
             return
     # If data file is out of date, redownload it and reload it
-    if zipinfo["feed_start_date"] < feedinfo["feed_start_date"]:
+    if (zipinfo["feed_start_date"] < feedinfo["feed_start_date"] or
+        zipinfo["feed_end_date"] < feedinfo["feed_end_date"]):
         print("Old metadata file, downloading")
         if not downloadZipDataset():
             return
         loadZipDataset()
+
 
 def updateAlerts(force=False):
     global alertlist
