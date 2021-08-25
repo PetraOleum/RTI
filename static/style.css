@@ -41,6 +41,15 @@ h1 {
     margin: 2 0;
 }
 
+.typical-days {
+    text-align: center;
+    margin: 2 0;
+}
+
+#extra-dates, #missing-dates {
+    font-size: 0.9em;
+}
+
 .cleantable {
     margin-left: auto;
     margin-right: auto;

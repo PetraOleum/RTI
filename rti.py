@@ -43,6 +43,8 @@ stoptimesurl = "https://api.opendata.metlink.org.nz/v1/gtfs/stop_times"
 alertsurl = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/servicealerts"
 zipurl = "https://static.opendata.metlink.org.nz/v1/gtfs/full.zip"
 
+dayShort = {1: 'M', 2: 'Tu', 3: 'W', 4: 'Th', 5: 'F', 6: 'Sa', 7: 'Su'}
+
 stopinfo = []
 stopids = {}
 feedinfo = {}
@@ -452,6 +454,35 @@ def statusString(service):
         return status
 
 
+def validDates(dates):
+    if dates is None or len(dates) == 0:
+        return None
+
+    mind = min(dates)
+    maxd = max(dates)
+    drange = [mind + dt.timedelta(days = x) for x in range(0, (maxd -
+                                                               mind).days + 1)]
+    t_days = [len([y for y in drange if int(y.strftime("%w")) == x]) for x in range(0, 7)]
+    r_days = [len([y for y in dates  if int(y.strftime("%w")) == x]) for x in range(0, 7)]
+    typical = [x for x in range(0, 7) if r_days[x] >= t_days[x] / 2]
+    missing = [x for x in range(0, 7) if r_days[x] < t_days[x] and x in
+               typical]
+    extra = [x for x in range(0, 7) if r_days[x] > 0 and x not in typical]
+    missing_dates = [date for date in drange if int(date.strftime("%w")) in
+                     missing and date not in dates]
+    extra_dates = [date for date in dates if int(date.strftime("%w")) in extra]
+    typical_7 = [((x - 1) % 7) + 1 for x in typical]
+    typical_str = "-".join([dayShort[x] for x in dayShort if x in typical_7])
+    return {
+        "min": mind,
+        "max": maxd,
+        "str": typical_str,
+        "extra": ", ".join([d.strftime("%a %-d %b") for d in extra_dates]) if len(extra_dates) > 0 else None,
+        "missing": ", ".join([d.strftime("%a %-d %b") for d in
+                              missing_dates]) if len(missing_dates) > 0 else None
+    }
+
+
 @app.route("/")
 def rti():
     return render_template("main.html", routes=sortedRouteCodes(), nalerts =
@@ -471,10 +502,8 @@ def Search():
 def timetable(stop):
     req = requests.get(depurl, params={"stop_id": stop}, headers=headers)
     if req.status_code != 200:
-        # return "Error {}".format(req.status_code)
         return render_template("nostop.html", error=req.status_code, nalerts =
                            len(alertlist))
-    # return req.json()
     stopname = "Unknown Stop"
     if stop in stopids:
         stopname = stopinfo[stopids[stop]]["stop_name"]
@@ -532,7 +561,6 @@ def stopsearch():
               stopinfo[stopids[stopnames[name]]]["zone_id"]}
              for name, ratio in toprank[:20]]
     sTable = StopTable(stdat)
-    # return sTable.__html__()
     return render_template("search.html", searchstring=query,
                            numres=len(stdat),
                            lup=stoplastupdate.strftime("%A %B %-d"),
@@ -593,11 +621,12 @@ def routeInfo(rquery):
                                len(alertlist))
     if rtrip:
         dates = caldates.get(trip_serv.get(ra["trip"]))
+        vdates = validDates(dates)
         datetable = None
-        if dates is not None and len(dates) > 0:
-            datetable = DateTable([{"day": date.strftime("%A"), "date":
-                                    date.strftime("%-d %B %Y")} for date in
-                                   dates])
+        #if dates is not None and len(dates) > 0:
+        #    datetable = DateTable([{"day": date.strftime("%A"), "date":
+        #                            date.strftime("%-d %B %Y")} for date in
+        #                           dates])
         direction = "Outbound" if re.match("^[^_]*__([01])", ra["trip"]).groups()[0] == "0" else "Inbound"
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stopinfo[stopids[stop["stop_id"]]]["parent_station"] if
@@ -617,7 +646,7 @@ def routeInfo(rquery):
                                direction=direction,
                                routes=sortedRouteCodes(),
                                nalerts = len(alertlist), alerts = rel_alerts,
-                               datetable=datetable)
+                               valid_dates=vdates, datetable=datetable)
     else:
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stop["parent_station"] if
