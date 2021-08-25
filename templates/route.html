@@ -18,6 +18,18 @@
 
     {{ table }}
 
+    {% if trips is defined and trips is not none %}
+
+    <hr id="trips" style="max-width: 350px; margin: 20px auto;"/>
+
+    <h1 class="stopinfo">Valid timetabled trips for route {{ code }}</h1>
+
+    <p class="triplist-note">(Subject to cancellations and public holidays)</p>
+
+    {{ trips }}
+
+    {% endif %}
+
     {% if alerts is defined and alerts is not none and alerts|length > 0 %}
     <hr id="alerts" style="max-width: 350px; margin: 20px auto;"/>
 

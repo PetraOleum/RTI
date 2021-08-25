@@ -156,7 +156,13 @@ h1 {
     font-style: italic;
 }
 
-.zonecol {
+.triplist-note {
+    text-align: center;
+    font-size: 0.8em;
+    margin: 2 0;
+}
+
+.zonecol, .daylistcol, .dircol {
     text-align: center;
 }
 

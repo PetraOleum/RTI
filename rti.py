@@ -59,6 +59,8 @@ routetrips = {}
 trip_serv = {}
 caldates = {}
 agencies = {}
+trip_seq = {}
+trip_dir = {}
 stoplastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 routeslastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 alertslastupdate = dt.datetime.now(patz) - dt.timedelta(seconds=60*20)
@@ -104,6 +106,8 @@ def loadZipDataset():
     global trip_serv
     global caldates
     global agencies
+    global trip_seq
+    global trip_dir
     nowtime = dt.datetime.now(patz)
     print("Loading zip of metadata at {}".format(nowtime.strftime("%c")))
     if not exists("GTFS_full.zip"):
@@ -134,6 +138,8 @@ def loadZipDataset():
             for row in triprows:
                 triplist.append(row)
             alltrips = [trip["trip_id"] for trip in triplist]
+            trip_dir = {trip["trip_id"]: trip["direction_id"] for trip in
+                        triplist}
         if len(triplist) == 0:
             return False
         print("done trips")
@@ -188,10 +194,12 @@ def loadZipDataset():
         with textwrap(z.open(
             "stop_pattern_trips.txt"), encoding="utf-8-sig") as spfile:
             trip_serv = {}
+            trip_seq = {}
             sptrows = csv.DictReader(spfile)
             for row in sptrows:
                 trip_serv[row["trip_id"]] = servfromtrip(row["trip_id"],
                                                          agencies.keys())
+                trip_seq[row["trip_id"]] = row["trip_sequence"]
         if len(trip_serv) == 0:
             return False
         print("done stop patterns")
@@ -420,6 +428,21 @@ class DateTable(Table):
     classes = ["cleantable"]
 
 
+class TripTable(Table):
+    seqCol = LinkCol("Trip", "routeInfo",
+                     th_html_attrs={"title":
+                                    "Trip sequence number (given day pattern "
+                                    "and direction)"},
+                    url_kwargs=dict(rquery="rname", trip="trip_id"),
+                       attr='seq')
+    days = Col("Days", th_html_attrs={"title": "Typical operating days"},
+               td_html_attrs={"class": "daylistcol"})
+    direction = Col("Direction", th_html_attrs={"title": "Direction of trip"},
+                    td_html_attrs={"class": "dircol"})
+    table_id = "triptable"
+    classes = ["cleantable"]
+
+
 app = Flask(__name__)
 scheduler = APScheduler()
 scheduler.init_app(app)
@@ -476,6 +499,7 @@ def validDates(dates):
     return {
         "min": mind,
         "max": maxd,
+        "first_d": typical_7[0] if len(typical_7) > 0 else 0,
         "str": typical_str,
         "extra": ", ".join([d.strftime("%a %-d %b") for d in extra_dates]) if len(extra_dates) > 0 else None,
         "missing": ", ".join([d.strftime("%a %-d %b") for d in
@@ -627,7 +651,7 @@ def routeInfo(rquery):
         #    datetable = DateTable([{"day": date.strftime("%A"), "date":
         #                            date.strftime("%-d %B %Y")} for date in
         #                           dates])
-        direction = "Outbound" if re.match("^[^_]*__([01])", ra["trip"]).groups()[0] == "0" else "Inbound"
+        direction = "Outbound" if trip_dir[ra["trip"]] == "0" else "Inbound"
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stopinfo[stopids[stop["stop_id"]]]["parent_station"] if
                           stop["stop_id"] in stopids and
@@ -653,6 +677,27 @@ def routeInfo(rquery):
                       stop["parent_station"] != "" else stop["stop_id"],
                       "stop": stop["stop_name"],
                       "zone": stop["zone_id"]} for stop in rv]
+        rtrips = routetrips.get(routeinfo["route_id"])
+        triptab = None
+        if rtrips is not None and len(rtrips) > 0:
+            tripdays = {t: validDates(caldates.get(trip_serv.get(t))) for t in
+                        rtrips}
+            tripsdat = [{"rname": rquery,
+                         "trip_id": t,
+                         "seq": trip_seq[t],
+                         "days": tripdays[t]["str"] if tripdays[t]
+                         is not None else "?",
+                         "first_d": tripdays[t]["first_d"] if tripdays[t] is
+                         not None else 0,
+                         "direction": "Outbound" if (trip_dir[t] ==
+                                                     "0") else "Inbound"}
+                        for t in rtrips]
+            tripsdat.sort(key=lambda x: int(x["seq"]) if x["seq"].isnumeric()
+                          else 0)
+            tripsdat.sort(key=lambda x: x["direction"])
+            tripsdat.sort(key=lambda x: x["days"])
+            tripsdat.sort(key=lambda x: x["first_d"])
+            triptab = TripTable(tripsdat)
         all_stops = [s["code"] for s in rstopsdat]
         rel_alerts = [alert for alert in alertlist if route_code in
                       alert["routes"] or any([x in alert["stops"] for x in
@@ -661,6 +706,7 @@ def routeInfo(rquery):
         return render_template("route.html", code=route_code, name=route_name,
                                table=rTable if len(rstopsdat) > 0 else "",
                                lup=routeslastupdate.strftime("%A %B %-d"),
+                               trips=triptab,
                                routes=sortedRouteCodes(),
                                nalerts = len(alertlist), alerts = rel_alerts)
 
