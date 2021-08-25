@@ -23,9 +23,9 @@
     {% endif %}
 
     {% if alerts is defined and alerts is not none and alerts|length > 0 %}
-    <hr style="max-width: 350px; margin: 20px auto;"/>
+    <hr id="alerts" style="max-width: 350px; margin: 20px auto;"/>
 
-    <h1 class="stopinfo" id="alerts">Relevant alerts for stop {{ stopname }} (<a href="#">back</a>)</h1>
+    <h1 class="stopinfo">Relevant alerts for stop {{ stopname }}</h1>
 
     <div class="alerts">
         {% for alert in alerts %}
