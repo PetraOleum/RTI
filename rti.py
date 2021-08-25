@@ -76,7 +76,9 @@ def servfromtrip(trip_id, ag_ids):
             ext = remd[-2:]
             remd = remd[:-2]
         if ag in ["RAIL", "WCCL", "EBYW"]:
-            return remd.replace("_", " ") + ext
+            #return remd.replace("_", " ") + ext
+            remd = remd.replace("_", " ")
+            return remd.replace("  ", "_")
         else:
             return remd[:int(len(remd) / 2 - 1)].replace("__", "_") + ext
     return None
