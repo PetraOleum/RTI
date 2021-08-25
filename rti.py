@@ -117,7 +117,7 @@ def loadZipDataset():
                                                              "stop_pattern_trips.txt"]):
             return False
 
-        with textwrap(z.open("agency.txt"), encoding="utf-8") as agfile:
+        with textwrap(z.open("agency.txt"), encoding="utf-8-sig") as agfile:
             agencies = {}
             agrows = csv.DictReader(agfile)
             for row in agrows:
@@ -126,7 +126,7 @@ def loadZipDataset():
             return False
         print("done agencies")
 
-        with textwrap(z.open("trips.txt"), encoding="utf-8") as tripfile:
+        with textwrap(z.open("trips.txt"), encoding="utf-8-sig") as tripfile:
             triplist = []
             triprows = csv.DictReader(tripfile)
             for row in triprows:
@@ -136,7 +136,7 @@ def loadZipDataset():
             return False
         print("done trips")
 
-        with textwrap(z.open("stops.txt"), encoding="utf-8") as stopfile:
+        with textwrap(z.open("stops.txt"), encoding="utf-8-sig") as stopfile:
             stopinfo = []
             stoprows = csv.DictReader(stopfile)
             for row in stoprows:
@@ -151,7 +151,7 @@ def loadZipDataset():
             stoplastupdate = nowtime
         print("done stops")
 
-        with textwrap(z.open("routes.txt"), encoding="utf-8") as routefile:
+        with textwrap(z.open("routes.txt"), encoding="utf-8-sig") as routefile:
             routeinfo = []
             routerows = csv.DictReader(routefile)
             for row in routerows:
@@ -168,7 +168,7 @@ def loadZipDataset():
         print("done routes")
 
         with textwrap(z.open(
-            "calendar_dates.txt"), encoding="utf-8") as calfile:
+            "calendar_dates.txt"), encoding="utf-8-sig") as calfile:
             calrows = csv.DictReader(calfile)
             caldates = {}
             for row in calrows:
@@ -184,7 +184,7 @@ def loadZipDataset():
         print("done calendar")
 
         with textwrap(z.open(
-            "stop_pattern_trips.txt"), encoding="utf-8") as spfile:
+            "stop_pattern_trips.txt"), encoding="utf-8-sig") as spfile:
             trip_serv = {}
             sptrows = csv.DictReader(spfile)
             for row in sptrows:
@@ -194,7 +194,7 @@ def loadZipDataset():
             return False
         print("done stop patterns")
 
-        with textwrap(z.open("feed_info.txt"), encoding="utf-8") as feedfile:
+        with textwrap(z.open("feed_info.txt"), encoding="utf-8-sig") as feedfile:
             feedrows = csv.DictReader(feedfile)
             for row in feedrows:
                 zipinfo = row
