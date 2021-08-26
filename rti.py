@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, send_from_directory
 from flask_apscheduler import APScheduler
 from flask_table import Table, Col, LinkCol
 from dateutil.parser import isoparse
@@ -576,6 +576,11 @@ def validDates(dates):
         "missing": ", ".join([d.strftime("%a %-d %b") for d in
                               missing_dates]) if len(missing_dates) > 0 else None
     }
+
+
+@app.route("/robots.txt")
+def static_page():
+    return send_from_directory(app.static_folder, request.path[1:])
 
 
 @app.route("/")
