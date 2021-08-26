@@ -476,6 +476,9 @@ class StopTimeTable(Table):
     table_id = "stoptimetable"
     classes = ["cleantable"]
 
+    def get_tr_attrs(self, item):
+        return {'id': "stop-{}".format(item["sms"])}
+
 
 class LocationTable(Table):
     code = LinkCol("Code", "timetable", url_kwargs=dict(stop="sms"),
