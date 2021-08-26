@@ -477,7 +477,7 @@ class StopTimeTable(Table):
     classes = ["cleantable"]
 
     def get_tr_attrs(self, item):
-        return {'id': "stop-{}".format(item["sms"])}
+        return {'id': "stop-{}".format(item["code"])}
 
 
 class LocationTable(Table):
@@ -604,6 +604,10 @@ def Search():
 def timetable(stop):
     req = requests.get(depurl, params={"stop_id": stop}, headers=headers)
     if req.status_code != 200:
+        if stop in stopids:
+            parent = stopinfo[stopids[stop]]["parent_station"]
+            if parent != "":
+                return redirect("/stop/{}/".format(parent.strip()), 302, None)
         return render_template("nostop.html", error=req.status_code, nalerts =
                            len(alertlist))
     stopname = "Unknown Stop"
@@ -632,6 +636,12 @@ def timetable(stop):
                       any([x in a["routes"] for x in seen_routes]) or
                       any([x in a["trips"] for x in seen_trips])]
     else:
+        if stop in stopids:
+            print(stop)
+            parent = stopinfo[stopids[stop]]["parent_stop"]
+            print(parent)
+            if parent != "":
+                return redirect("/stop/{}/".format(parent.strip()), 302, None)
         ttdat = []
         rel_alerts = []
     return render_template("stop.html", stopnumber=stop,
