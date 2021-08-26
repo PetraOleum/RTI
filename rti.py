@@ -347,7 +347,6 @@ def updatePositions():
     if len(tpdict) > 0:
         positionlastupdate = datstamp
         trip_positions = tpdict
-        print("{} vehicles loaded".format(len(tpdict)))
 
 
 updateFeedInfo(True)
