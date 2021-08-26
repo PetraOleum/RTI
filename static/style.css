@@ -56,7 +56,7 @@ h1 {
     border-collapse: collapse;
 }
 
-#stoptable, #locationtable, #stoptimetable {
+#stoptable, #locationtable, #stoptimetable, #triptable {
     margin-bottom: 0.6em;
 }
 
@@ -123,6 +123,28 @@ h1 {
     margin-bottom: 5;
 }
 
+.vehicleinfo {
+    border: 2px black solid;
+    max-width: 400px;
+    margin: 5px auto 10px auto;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #f0f0f0;
+}
+
+.vehicleinfo h5 {
+    margin: 0;
+    text-align: center;
+    font-size: 1em;
+    font-weight: bold;
+}
+
+.vehicleinfo p {
+    margin: 0;
+    text-align: center;
+    font-size: 0.9em;
+}
+
 .fmain {
     display: table;
     width: 100%;
@@ -162,7 +184,7 @@ h1 {
     margin: 2 0;
 }
 
-.zonecol, .daylistcol, .dircol {
+.centrecol, .daylistcol, .dircol {
     text-align: center;
 }
 

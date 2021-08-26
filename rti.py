@@ -41,9 +41,13 @@ routelisturl = "https://api.opendata.metlink.org.nz/v1/gtfs/routes"
 feedinfourl = "https://api.opendata.metlink.org.nz/v1/gtfs/feed_info"
 stoptimesurl = "https://api.opendata.metlink.org.nz/v1/gtfs/stop_times"
 alertsurl = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/servicealerts"
+positionurl = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/vehiclepositions"
 zipurl = "https://static.opendata.metlink.org.nz/v1/gtfs/full.zip"
 
 dayShort = {1: 'M', 2: 'Tu', 3: 'W', 4: 'Th', 5: 'F', 6: 'Sa', 7: 'Su'}
+directions = {"N": "North", "NE": "North East", "E": "East",
+              "SE": "South East", "S": "South", "SW": "South West",
+              "W": "West", "NW": "North West"}
 
 stopinfo = []
 stopids = {}
@@ -61,9 +65,11 @@ caldates = {}
 agencies = {}
 trip_seq = {}
 trip_dir = {}
+trip_positions = {}
 stoplastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 routeslastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 alertslastupdate = dt.datetime.now(patz) - dt.timedelta(seconds=60*20)
+positionlastupdate = dt.datetime.now(patz) - dt.timedelta(seconds=60*20)
 
 def servfromtrip(trip_id, ag_ids):
     for ag in ag_ids:
@@ -308,8 +314,45 @@ def updateAlerts(force=False):
         alertslastupdate = nowtime
 
 
+def updatePositions():
+    global trip_positions
+    global positionlastupdate
+    req = requests.get(positionurl, headers=headers)
+    if req.status_code != 200:
+        return
+    posdata = req.json()
+    if ("header" not in posdata or "entity" not in posdata or
+        len(posdata.get("entity")) == 0 or "timestamp" not in
+        posdata.get("header")):
+        return
+    datstamp = dt.datetime.fromtimestamp(posdata["header"]["timestamp"], patz)
+    tpdict = {}
+    for entity in posdata["entity"]:
+        try:
+            tid = entity["vehicle"]["trip"]["trip_id"]
+            tpdict[tid] = {
+                "direction": entity["vehicle"]["trip"]["direction_id"],
+                "route_id": entity["vehicle"]["trip"]["route_id"],
+                "start_time": entity["vehicle"]["trip"]["start_time"],
+                "bearing": entity["vehicle"]["position"]["bearing"],
+                "lat": entity["vehicle"]["position"]["latitude"],
+                "lon": entity["vehicle"]["position"]["longitude"],
+                "vehicle_id": entity["vehicle"]["vehicle"]["id"],
+                "timestamp": dt.datetime.fromtimestamp(
+                    entity["vehicle"]["timestamp"], patz)
+            }
+        except:
+            print("Error handling vehicle entity")
+            print(entity)
+    if len(tpdict) > 0:
+        positionlastupdate = datstamp
+        trip_positions = tpdict
+        print("{} vehicles loaded".format(len(tpdict)))
+
+
 updateFeedInfo(True)
 updateAlerts(True)
+updatePositions()
 
 def routeCodeKey(rc):
     if len(rc) < 2:
@@ -347,6 +390,27 @@ def planeDistance2(lat1, lon1, lat2, lon2):
     dlat = rlat1 - rlat2
     dlon = rlon1 - rlon2
     return Rm2 * (dlat**2 + (cos(pm) * dlon)**2)
+
+
+def headingdeg(bearing):
+    br = bearing % 360
+    if br < 45*0.5:
+        return "N"
+    if br < 45*1.5:
+        return "NE"
+    if br < 45 * 2.5:
+        return "E"
+    if br < 45 * 3.5:
+        return "SE"
+    if br < 45 * 4.5:
+        return "S"
+    if br < 45 * 5.5:
+        return "SW"
+    if br < 45 * 6.5:
+        return "W"
+    if br < 45 * 7.5:
+        return "NW"
+    return "N"
 
 
 def heading(dlat, dlon):
@@ -398,17 +462,18 @@ class StopTable(Table):
     code = LinkCol("Code", "timetable", url_kwargs=dict(stop="sms"),
                    attr='code')
     stop = Col("Stop")
-    zone = Col("Zone", td_html_attrs = {"class": "zonecol"})
+    zone = Col("Zone", td_html_attrs = {"class": "centrecol"})
     table_id = "stoptable"
     classes = ["cleantable"]
 
 
 class StopTimeTable(Table):
-    code = LinkCol("Code", "timetable", url_kwargs=dict(stop="sms"),
+    code = LinkCol("Code", "timetable",
+                   url_kwargs=dict(stop="sms"),
                    attr='code')
     stop = Col("Stop")
     sched = Col("Sched")
-    zone = Col("Zone", td_html_attrs = {"class": "zonecol"})
+    zone = Col("Zone", td_html_attrs = {"class": "centrecol"})
     table_id = "stoptimetable"
     classes = ["cleantable"]
 
@@ -417,7 +482,7 @@ class LocationTable(Table):
     code = LinkCol("Code", "timetable", url_kwargs=dict(stop="sms"),
                    attr='code')
     stop = Col("Stop")
-    zone = Col("Zone", td_html_attrs = {"class": "zonecol"})
+    zone = Col("Zone", td_html_attrs = {"class": "centrecol"})
     distance = Col("Distance")
     table_id = "locationtable"
     classes = ["cleantable"]
@@ -431,16 +496,18 @@ class DateTable(Table):
 
 
 class TripTable(Table):
-    seqCol = LinkCol("Trip", "routeInfo",
-                     th_html_attrs={"title":
-                                    "Trip sequence number (given day pattern "
-                                    "and direction)"},
-                    url_kwargs=dict(rquery="rname", trip="trip_id"),
-                       attr='seq')
-    days = Col("Days", th_html_attrs={"title": "Typical operating days"},
-               td_html_attrs={"class": "daylistcol"})
-    direction = Col("Direction", th_html_attrs={"title": "Direction of trip"},
-                    td_html_attrs={"class": "dircol"})
+    vehcol = LinkCol("Vehicle ID", "routeInfo",
+                     url_kwargs=dict(rquery="rname", trip="trip_id"),
+                     attr="vehicle",
+                     th_html_attrs={"title": "Assigned vehicle id"},
+                     td_html_attrs={"class": "centrecol"})
+    direction = Col("Direction",
+                    th_html_attrs={"title": "Direction of trip"},
+                    td_html_attrs={"class": "centrecol"})
+    departed = Col("Departed",
+                    th_html_attrs={"title":
+                                   "Time of departure from initial stop"},
+                    td_html_attrs={"class": "centrecol"})
     table_id = "triptable"
     classes = ["cleantable"]
 
@@ -454,6 +521,8 @@ app.apscheduler.add_job(func=updateFeedInfo, trigger="cron", args=[True],
                         minute='11', hour='3', id="ufeedinfo")
 app.apscheduler.add_job(func=updateAlerts, trigger="cron", args=[True],
                         minute='*/5', id="ualerts")
+app.apscheduler.add_job(func=updatePositions, trigger="cron", minute="*",
+                        id="upos")
 
 def stopExtract(code, name):
     z = re.match("{} - (.*)".format(code), name)
@@ -653,6 +722,32 @@ def routeInfo(rquery):
         #    datetable = DateTable([{"day": date.strftime("%A"), "date":
         #                            date.strftime("%-d %B %Y")} for date in
         #                           dates])
+        tripstops = [stopinfo[stopids[stop["stop_id"]]] for
+                     stop in slist if stop["stop_id"] in stopids]
+        vehdata = None
+        vehtripdat = trip_positions.get(ra["trip"])
+        if vehtripdat is not None and len(tripstops) > 0:
+            can_stops = [{"id": stop["stop_id"], "name": stop["stop_name"],
+                          "dlat": stop["stop_lat"] - vehtripdat["lat"],
+                          "dlon": stop["stop_lon"] - vehtripdat["lon"],
+                          "dist2": planeDistance2(stop["stop_lat"],
+                                                  stop["stop_lon"],
+                                                  vehtripdat["lat"],
+                                                  vehtripdat["lon"])}
+                          for stop in tripstops]
+            can_stops.sort(key=lambda x: x["dist2"])
+            c_stop = can_stops[0]
+            vehdata = {
+                "id": vehtripdat["vehicle_id"],
+                "dtime": (dt.datetime.now(patz) -
+                          vehtripdat["timestamp"]).seconds,
+                "s_dist": prettyDistance(sqrt(c_stop["dist2"])),
+                "s_head": directions.get(heading(c_stop["dlat"],
+                                                 c_stop["dlon"])),
+                "s_id": c_stop["id"],
+                "s_name": c_stop["name"],
+                "bearing": directions.get(headingdeg(vehtripdat["bearing"]))
+            }
         direction = "Outbound" if trip_dir[ra["trip"]] == "0" else "Inbound"
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stopinfo[stopids[stop["stop_id"]]]["parent_station"] if
@@ -672,7 +767,8 @@ def routeInfo(rquery):
                                direction=direction,
                                routes=sortedRouteCodes(),
                                nalerts = len(alertlist), alerts = rel_alerts,
-                               valid_dates=vdates, datetable=datetable)
+                               valid_dates=vdates, datetable=datetable,
+                               vehicle=vehdata)
     else:
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stop["parent_station"] if
@@ -687,19 +783,17 @@ def routeInfo(rquery):
             tripsdat = [{"rname": rquery,
                          "trip_id": t,
                          "seq": trip_seq[t],
-                         "days": tripdays[t]["str"] if tripdays[t]
-                         is not None else "?",
-                         "first_d": tripdays[t]["first_d"] if tripdays[t] is
-                         not None else 0,
                          "direction": "Outbound" if (trip_dir[t] ==
-                                                     "0") else "Inbound"}
-                        for t in rtrips]
-            tripsdat.sort(key=lambda x: int(x["seq"]) if x["seq"].isnumeric()
-                          else 0)
-            tripsdat.sort(key=lambda x: x["direction"])
-            tripsdat.sort(key=lambda x: x["days"])
-            tripsdat.sort(key=lambda x: x["first_d"])
-            triptab = TripTable(tripsdat)
+                                                     "0") else "Inbound",
+                         "vehicle": trip_positions[t]["vehicle_id"],
+                         "departed":
+                         trip_positions[t]["start_time"]}
+                        for t in rtrips if t in trip_positions]
+            if len(tripsdat) > 0:
+                tripsdat.sort(key=lambda x: int(x["seq"]) if x["seq"].isnumeric()
+                              else 0)
+                tripsdat.sort(key=lambda x: x["direction"])
+                triptab = TripTable(tripsdat)
         all_stops = [s["code"] for s in rstopsdat]
         rel_alerts = [alert for alert in alertlist if route_code in
                       alert["routes"] or any([x in alert["stops"] for x in
@@ -720,7 +814,7 @@ def nearbyStops(stop):
                                lup=stoplastupdate.strftime("%A %B %-d"), nalerts =
                            len(alertlist))
     thisstop = stopinfo[stopids[stop]]
-    stopDistances = [{"id": x["stop_id"], 
+    stopDistances = [{"id": x["stop_id"],
                       "parent": x["parent_station"],
                       "name": x["stop_name"],
                       "zone": x["zone_id"],

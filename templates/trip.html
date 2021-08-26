@@ -30,6 +30,13 @@
 
     {% endif %}
 
+    {% if vehicle is defined and vehicle is not none %}
+    <div class="vehicleinfo">
+        <h5>Trip assigned to vehicle {{ vehicle["id"] }}</h5>
+        <p>Last seen {% if vehicle["dtime"] < 3*60 %}{{ vehicle["dtime"] }} seconds ago{% elif vehicle["dtime"] < 3600 %}{{ vehicle["dtime"] // 60 }} minutes ago{% elif vehicle["dtime"] > 86000 %}moments ago{% endif %} <strong>{{ vehicle["s_dist"] }}m {{ vehicle["s_head"] }}</strong> of stop <a href='/stop/{{ vehicle["s_id"] }}/'>{{ vehicle["s_id"] }} {{ vehicle["s_name"] }}</a>, travelling {{ vehicle["bearing"] }}.</p>
+    </div>
+    {% endif %}
+
     {{ table }}
 
     {% if datetable is defined and datetable is not none %}
