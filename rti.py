@@ -748,6 +748,7 @@ def routeInfo(rquery):
                 "id": vehtripdat["vehicle_id"],
                 "dtime": (dt.datetime.now(patz) -
                           vehtripdat["timestamp"]).seconds,
+                "ob_time": vehtripdat["timestamp"],
                 "s_dist": prettyDistance(sqrt(c_stop["dist2"])),
                 "s_head": directions.get(heading(c_stop["dlat"],
                                                  c_stop["dlon"])),
