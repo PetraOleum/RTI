@@ -745,8 +745,8 @@ def routeInfo(rquery):
         vehtripdat = trip_positions.get(ra["trip"])
         if vehtripdat is not None and len(tripstops) > 0:
             can_stops = [{"id": stop["stop_id"], "name": stop["stop_name"],
-                          "dlat": stop["stop_lat"] - vehtripdat["lat"],
-                          "dlon": stop["stop_lon"] - vehtripdat["lon"],
+                          "dlat": vehtripdat["lat"] - stop["stop_lat"],
+                          "dlon": vehtripdat["lon"] - stop["stop_lon"],
                           "dist2": planeDistance2(stop["stop_lat"],
                                                   stop["stop_lon"],
                                                   vehtripdat["lat"],
