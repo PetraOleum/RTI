@@ -101,6 +101,10 @@ h1 {
     background-color: #f0f0f0;
 }
 
+.cleantable tr:target {
+    background-color: #ffffcc
+}
+
 .cleantable thead {
     background-color: #dddddd;
 }
