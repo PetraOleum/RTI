@@ -345,6 +345,12 @@ def updatePositions():
             print("Error handling vehicle entity")
             print(entity)
     if len(tpdict) > 0:
+        keepovers = {t: trip_positions[t] for t in trip_positions if t not in
+                     tpdict and (datstamp -
+                                 trip_positions[t]["timestamp"]).seconds <
+                     60*5}
+        if len(keepovers) > 0:
+            tpdict.update(keepovers)
         positionlastupdate = datstamp
         trip_positions = tpdict
 
