@@ -345,10 +345,13 @@ def updatePositions():
             print("Error handling vehicle entity")
             print(entity)
     if len(tpdict) > 0:
+        seenveh = [tpdict[t]["vehicle_id"] for t in tpdict]
         keepovers = {t: trip_positions[t] for t in trip_positions if t not in
                      tpdict and (datstamp -
-                                 trip_positions[t]["timestamp"]).seconds <
-                     60*5}
+                                 trip_positions[t]["timestamp"]).seconds
+                     < 60*5 and trip_positions[t]["vehicle_id"] not in seenveh}
+        print(len(keepovers))
+        print([keepovers[t]["vehicle_id"] for t in keepovers])
         if len(keepovers) > 0:
             tpdict.update(keepovers)
         positionlastupdate = datstamp
@@ -710,7 +713,8 @@ def routeInfo(rquery):
                                len(alertlist))
     routeinfo = routelist[rquery]
     ra = request.args
-    rtrip = ("trip" in ra and ra["trip"] != "" and ra["trip"] != "none") slist = []
+    rtrip = ("trip" in ra and ra["trip"] != "" and ra["trip"] != "none")
+    slist = []
     thistripinfo = []
     if rtrip:
         thistripinfo = [x for x in triplist if x["route_id"] ==
