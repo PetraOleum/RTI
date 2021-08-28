@@ -710,8 +710,7 @@ def routeInfo(rquery):
                                len(alertlist))
     routeinfo = routelist[rquery]
     ra = request.args
-    rtrip = ("trip" in ra and ra["trip"] != "" and ra["trip"] != "none")
-    slist = []
+    rtrip = ("trip" in ra and ra["trip"] != "" and ra["trip"] != "none") slist = []
     thistripinfo = []
     if rtrip:
         thistripinfo = [x for x in triplist if x["route_id"] ==
@@ -735,8 +734,9 @@ def routeInfo(rquery):
     rv = req.json()
     if len(rv) == 0:
         return render_template("badroute.html", error="No stops in route",
-                               routes=sortedRouteCodes(), nalerts =
-                               len(alertlist))
+                               routes=sortedRouteCodes(),
+                               lup=routeslastupdate.strftime("%A %B %-d"),
+                               nalerts=len(alertlist))
     if rtrip:
         dates = caldates.get(trip_serv.get(ra["trip"]))
         vdates = validDates(dates)
