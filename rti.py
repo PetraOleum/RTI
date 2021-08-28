@@ -350,8 +350,6 @@ def updatePositions():
                      tpdict and (datstamp -
                                  trip_positions[t]["timestamp"]).seconds
                      < 60*5 and trip_positions[t]["vehicle_id"] not in seenveh}
-        print(len(keepovers))
-        print([keepovers[t]["vehicle_id"] for t in keepovers])
         if len(keepovers) > 0:
             tpdict.update(keepovers)
         positionlastupdate = datstamp
