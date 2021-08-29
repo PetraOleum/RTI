@@ -188,8 +188,12 @@ h1 {
     margin: 2 0;
 }
 
-.centrecol, .daylistcol, .dircol {
+.centrecol, .daylistcol, .dircol, .tcol {
     text-align: center;
+}
+
+.timepoint .tcol {
+    font-weight: bold;
 }
 
 .routename {
