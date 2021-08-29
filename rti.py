@@ -526,8 +526,12 @@ class StopTimeTable(Table):
 
     def get_tr_attrs(self, item):
         trattrs = {'id': "stop-{}".format(item["code"])}
-        if item["tp"]:
+        if item["tp"] and item["nearest"]:
+            trattrs.update({'class': 'timepoint nearest'})
+        elif item["tp"]:
             trattrs.update({'class': 'timepoint'})
+        elif item["nearest"]:
+            trattrs.update({'class': 'nearest'})
         return trattrs
 
 
@@ -843,7 +847,9 @@ def routeInfo(rquery):
                       "zone": stop["inf"]["zone_id"] if stop["inf"] is not None
                           else "",
                       "tp": stop["tp"],
-                      "sched": stop["time"]} for stop in slist]
+                      "sched": stop["time"],
+                      "nearest": stop["stop_id"] == vehdata["s_id"] if vehdata
+                     is not None else False} for stop in slist]
         rTable = StopTimeTable(rstopsdat)
         rel_alerts = [alert for alert in alertlist if ttrip in
                       alert["trips"] or route_code in alert["routes"]]

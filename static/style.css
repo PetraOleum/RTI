@@ -101,8 +101,13 @@ h1 {
     background-color: #f0f0f0;
 }
 
-.cleantable tr:target {
+
+.cleantable tr.nearest {
     background-color: #ffffcc
+}
+
+.cleantable tr:target {
+    background-color: #ccffcc
 }
 
 .cleantable thead {
