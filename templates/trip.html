@@ -30,10 +30,15 @@
 
     {% endif %}
 
-    {% if vehicle is defined and vehicle is not none %}
+    {% if vehicle is not none %}
     <div class="vehicleinfo">
-        <h5>Trip assigned to vehicle {{ vehicle["id"] }}</h5>
-        <p>Last seen <span title='Observed at {{ vehicle["ob_time"].strftime("%H:%M:%S") }}'>{% if vehicle["dtime"] < 3*60 %}{{ vehicle["dtime"] }} seconds ago{% elif vehicle["dtime"] < 3600 %}{{ vehicle["dtime"] // 60 }} minutes ago{% elif vehicle["dtime"] > 86000 %}moments ago{% endif %}</span> <strong>{{ vehicle["s_dist"] }}m {{ vehicle["s_head"] }}</strong> of stop <a href='#stop-{{ vehicle["s_id"] }}'>{{ vehicle["s_id"] }} {{ vehicle["s_name"] }}</a>, travelling {{ vehicle["bearing"] }}.</p>
+        <h5>Trip assigned to vehicle {{ vehicle }}</h5>
+        {% if v_pos is not none %}
+        <p>Last seen <span title='Observed at {{ v_pos["ob_time"].strftime("%H:%M:%S") }}'>{% if v_pos["dtime"] < 3*60 %}{{ v_pos["dtime"] }} seconds ago{% elif v_pos["dtime"] < 3600 %}{{ v_pos["dtime"] // 60 }} minutes ago{% elif v_pos["dtime"] > 86000 %}moments ago{% endif %}</span> <strong>{{ v_pos["s_dist"] }}m {{ v_pos["s_head"] }}</strong> of stop <a href='#stop-{{ v_pos["s_id"] }}'>{{ v_pos["s_id"] }} {{ v_pos["s_name"] }}</a>, travelling {{ v_pos["bearing"] }}.</p>
+        {% endif %}
+        {% if v_upd is not none %}
+        <p><em>Running <strong>{{ v_upd["delay"] }}</strong> as at {{ v_upd["ob_time"].strftime("%H:%M") }}.</em></p>
+        {% endif %}
     </div>
     {% endif %}
 

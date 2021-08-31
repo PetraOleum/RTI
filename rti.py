@@ -44,6 +44,7 @@ stoptimesurl = "https://api.opendata.metlink.org.nz/v1/gtfs/stop_times"
 alertsurl = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/servicealerts"
 positionurl = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/vehiclepositions"
 zipurl = "https://static.opendata.metlink.org.nz/v1/gtfs/full.zip"
+tripupdatesurl = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/tripupdates"
 
 dayShort = {1: 'M', 2: 'Tu', 3: 'W', 4: 'Th', 5: 'F', 6: 'Sa', 7: 'Su'}
 directions = {"N": "North", "NE": "North East", "E": "East",
@@ -68,6 +69,7 @@ trip_seq = {}
 trip_dir = {}
 trip_stop_times = {}
 trip_positions = {}
+trip_updates = {}
 trip_sid = {}
 stop_patterns = {}
 stoplastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
@@ -397,9 +399,46 @@ def updatePositions():
         trip_positions = tpdict
 
 
+def updateTripUpdates():
+    global trip_updates
+    req = requests.get(tripupdatesurl, headers=headers)
+    if req.status_code != 200:
+        return
+    updata = req.json()
+    if ("header" not in updata or "entity" not in updata or
+        len(updata.get("entity")) == 0 or "timestamp" not in
+        updata.get("header")):
+        return
+    datstamp = dt.datetime.fromtimestamp(updata["header"]["timestamp"], patz)
+    updict = {}
+    for entity in updata["entity"]:
+        try:
+            tup = entity.get("trip_update")
+            tid = tup.get("trip").get("trip_id")
+            delay = tup.get("stop_time_update").get("arrival").get("delay")
+            s_r = tup.get("trip").get("schedule_relationship")
+            tstamp = dt.datetime.fromtimestamp(tup.get("timestamp"), patz)
+            vid = tup.get("vehicle").get("id")
+            updict[tid] = {"delay": delay, "sr": s_r, "ts": tstamp, "vid": vid}
+        except:
+            print("Error handling update entity")
+            print(entity)
+    if len(updict) > 0:
+        seenveh = [updict[t]["vid"] for t in updict]
+        keepovers = {t: trip_updates[t] for t in trip_updates if t not in
+                     updict and (datstamp -
+                                 trip_updates[t]["ts"]).seconds
+                     < 60*5 and trip_updates[t]["vid"] not in seenveh}
+        if len(keepovers) > 0:
+            updict.update(keepovers)
+        trip_updates = updict
+
+
+
 updateFeedInfo(True)
 updateAlerts(True)
 updatePositions()
+updateTripUpdates()
 
 def routeCodeKey(rc):
     if len(rc) < 2:
@@ -580,6 +619,8 @@ app.apscheduler.add_job(func=updateAlerts, trigger="cron", args=[True],
                         minute='*/5', id="ualerts")
 app.apscheduler.add_job(func=updatePositions, trigger="cron", minute="*",
                         id="upos")
+app.apscheduler.add_job(func=updateTripUpdates, trigger="cron", minute="*/2",
+                        id="utrip")
 
 def stopExtract(code, name):
     z = re.match("{} - (.*)".format(code), name)
@@ -812,29 +853,44 @@ def routeInfo(rquery):
         tripstops = [s.get("inf") for s in slist if
                      s.get("inf") is not None]
         vehdata = None
-        vehtripdat = trip_positions.get(ttrip)
-        if vehtripdat is not None and len(tripstops) > 0:
+        a_vid = None
+        vehposdat = trip_positions.get(ttrip)
+        if vehposdat is not None and len(tripstops) > 0:
             can_stops = [{"id": stop["stop_id"], "name": stop["stop_name"],
-                          "dlat": vehtripdat["lat"] - stop["stop_lat"],
-                          "dlon": vehtripdat["lon"] - stop["stop_lon"],
+                          "dlat": vehposdat["lat"] - stop["stop_lat"],
+                          "dlon": vehposdat["lon"] - stop["stop_lon"],
                           "dist2": planeDistance2(stop["stop_lat"],
                                                   stop["stop_lon"],
-                                                  vehtripdat["lat"],
-                                                  vehtripdat["lon"])}
+                                                  vehposdat["lat"],
+                                                  vehposdat["lon"])}
                           for stop in tripstops]
             can_stops.sort(key=lambda x: x["dist2"])
             c_stop = can_stops[0]
+            a_vid = vehposdat["vehicle_id"]
             vehdata = {
-                "id": vehtripdat["vehicle_id"],
                 "dtime": (dt.datetime.now(patz) -
-                          vehtripdat["timestamp"]).seconds,
-                "ob_time": vehtripdat["timestamp"],
+                          vehposdat["timestamp"]).seconds,
+                "ob_time": vehposdat["timestamp"],
                 "s_dist": prettyDistance(sqrt(c_stop["dist2"])),
                 "s_head": directions.get(heading(c_stop["dlat"],
                                                  c_stop["dlon"])),
                 "s_id": c_stop["id"],
                 "s_name": c_stop["name"],
-                "bearing": directions.get(headingdeg(vehtripdat["bearing"]))
+                "bearing": directions.get(headingdeg(vehposdat["bearing"]))
+            }
+        vehtripdat = trip_updates.get(ttrip)
+        veh_tup = None
+        if vehtripdat is not None:
+            if a_vid is None:
+                a_vid = vehtripdat.get("vid")
+            delay = vehtripdat["delay"]
+            veh_tup = {
+                "sr": vehtripdat["sr"],
+                "ob_time": vehtripdat["ts"],
+                "delay": "on time" if abs(delay) < 30 else ("{} minute{} "
+                "{}").format(round(abs(delay) / 60),
+                             "s" if round(abs(delay) / 60) != 1 else "",
+                             "early" if delay < 0 else "late")
             }
         direction = "Outbound" if trip_dir[ttrip] == "0" else "Inbound"
         rstopsdat = [{"code": stop["stop_id"],
@@ -859,7 +915,7 @@ def routeInfo(rquery):
                                routes=sortedRouteCodes(),
                                nalerts = len(alertlist), alerts = rel_alerts,
                                valid_dates=vdates, datetable=datetable,
-                               vehicle=vehdata)
+                               v_pos=vehdata, v_upd=veh_tup, vehicle=a_vid)
     else:
         rstopsdat = [{"code": stop["stop_id"],
                       "sms": stop["parent_station"] if
