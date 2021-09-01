@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en-nz">
+    <head>
+        <meta charset="utf-8">
+        <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}"  type="image/svg">
+        <link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+        {% block header %}
+        <title>RTI Anywhere</title>
+        {% endblock %}
+    </head>
+    <body>
+        {% block content %}
+        <h1>Unofficial Metlink Wellington Real Time Anywhere</h1>
+
+        <p class="explainer">A fast, bookmarkable app for getting RTI info for bus stops in Wellington that don't have displays. Enter the stop number below.</p>
+        {% endblock %}
+
+        <div id="info">
+            <p><a href="/">Home</a> - <a href="/alerts/">{{ footer["alerts"] }} service alerts</a> - <a href="/vehicles/">{{ footer["vehicles"] }} active vehicles</a></p>
+            <p>Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
+        </div>
+    </body>
+</html>

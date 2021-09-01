@@ -1,11 +1,11 @@
-<title>{{ code }} {{ name }} - Nearby Stops - RTI Anywhere</title>
+{% extends "base.html" %}
+{% import "forms.html" as forms %}
 
-<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}"  type="image/svg">
-<link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+{% block header %}
+    <title>{{ code }} {{ name }} - Nearby Stops - RTI Anywhere</title>
+{% endblock header %}
 
-<body>
-
+{% block content %}
     <h1 class="stopinfo">Nearby to {{ code }}: {{ name }}</h1>
 
     <p id="zone">Zone {{ zone }} | <a href="/stop/{{ code }}/">Stop Timetable</a></p>
@@ -14,17 +14,5 @@
 
     {{ table }}
 
-    <form id="stopform" action="/stop/">
-        <div class="fmain">
-            <div class="fcol">Bus stop number:</div>
-            <div class="fcol"><input type="number" id="stopnumber" name="stopnum" value="{{ code }}" max="9999" min="0"></div>
-            <div class="fcol"><input type="submit" id="stopsubmit" value="Submit"></div>
-        </div>
-    </form>
-
-
-    <div id="info">
-        <p><a href="/">Home</a> {% if nalerts is defined %} - <a href="/alerts/">{{ nalerts }} active service alerts</a>{% endif %} - Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
-    </div>
-
-</body>
+    {{ forms.stop(code) }}
+{% endblock content %}

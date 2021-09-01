@@ -2,22 +2,20 @@
 {% import "forms.html" as forms %}
 
 {% block header %}
-    <title>{{ alerts|length }} Active Service Alerts - RTI Anywhere</title>
+    <title>{{ footer["vehicles"] }} Active Vehicles - RTI Anywhere</title>
 {% endblock header %}
 
 {% block content %}
-    <h1 class="alerts">{{ alerts|length }} Active Service Alerts</h1>
+    <h1 class="alerts">{{ footer["vehicles"] }} Active Vehicles</h1>
 
     <p class="lastupdated">Last updated at {{ lup.strftime("%H:%M, %A %B %-d") }}</p>
 
-    {% if alerts|length == 0 %}
-        <p class="no-table"><strong>No alerts.</strong></p>
+    {% if table is none %}
+    <p class="no-table">The vehicles are all asleep.</p>
     {% else %}
-
-    {{ forms.alertList(alerts) }}
-
+    {{ table }}
     {% endif %}
-
     <hr style="max-width: 350px; margin: 20px auto;"/>
 
 {% endblock content %}
+

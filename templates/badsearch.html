@@ -1,31 +1,16 @@
-<title>Stop Search - RTI Anywhere</title>
+{% extends "base.html" %}
+{% import "forms.html" as forms %}
 
-<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}"  type="image/svg">
-<link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+{% block header %}
+    <title>Stop Search - RTI Anywhere</title>
+{% endblock header %}
 
-<body>
-
+{% block content %}
     <h1 class="stopinfo">Stop Search</h1>
 
     <p class="numresults">No results</p>
 
     <p class="lastupdated">Stop database last updated {{ lup }}</p>
 
-    <br/>
-
-<form id="searchform" action="/search/">
-    <div class="fmain">
-        <div class="fcol">Search for stop:</div>
-        <div class="fcol"><input type="text" id="searchquery" name="q"></div>
-        <div class="fcol"><input type="submit" id="searchsubmit" value="Search"></div>
-    </div>
-</form>
-
-<div id="info">
-    <p><a href="/">Home</a> {% if nalerts is defined %} - <a href="/alerts/">{{ nalerts }} active service alerts</a>{% endif %} - Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
-</div>
-
-</body>
-
-
+    {{ forms.search() }}
+{% endblock content %}

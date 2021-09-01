@@ -11,7 +11,7 @@ h1 {
 .lastupdated, .numresults {
     font-style: italic;
     text-align: center;
-    margin: 1;
+    margin: 1px;
 }
 
 .lastupdated {
@@ -21,7 +21,7 @@ h1 {
 .notice {
     text-align: center;
     font-size: 0.9em;
-    margin: 5 0;
+    margin: 5px 0;
 }
 
 .stopalerts {
@@ -32,18 +32,18 @@ h1 {
 
 #zone {
     text-align: center;
-    margin: 0.5;
+    margin: 0.5px;
 }
 
 #allstopslink {
     text-align: center;
     font-size: 0.9em;
-    margin: 2 0;
+    margin: 2px 0;
 }
 
 .typical-days {
     text-align: center;
-    margin: 2 0;
+    margin: 2px 0;
 }
 
 #extra-dates, #missing-dates {
@@ -60,10 +60,13 @@ h1 {
     margin-bottom: 0.6em;
 }
 
+#vehicletable {
+    margin-top: 5px;
+}
+
 #stopform, #routeform, #searchform {
     max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 13px auto;
     font-size: 0.8em;
     border-bottom: 1px solid black;
     border-top: 1px solid black;
@@ -117,9 +120,7 @@ h1 {
 #info p{
     text-align: center;
     max-width: 500px;
-    padding: 15px;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 2px auto;
 }
 
 .explainer {
@@ -128,8 +129,8 @@ h1 {
     margin-left: auto;
     margin-right: auto;
     font-style: italic;
-    margin-top: 2;
-    margin-bottom: 5;
+    margin-top: 2px;
+    margin-bottom: 5px;
 }
 
 .vehicleinfo {
@@ -169,7 +170,7 @@ h1 {
 .notices {
     text-align: center;
     font-size: 0.9em;
-    margin: 15 auto;
+    margin: 15px auto;
     max-width: 400px;
     padding: 5px;
     border: 1px solid lightgray;
@@ -190,7 +191,7 @@ h1 {
 .triplist-note {
     text-align: center;
     font-size: 0.8em;
-    margin: 2 0;
+    margin: 2px 0;
 }
 
 .centrecol, .daylistcol, .dircol, .tcol {
@@ -330,4 +331,9 @@ li.alert-stops, li.alert-trips, li.alert-routes {
 
 .datecol {
     text-align: right;
+}
+
+.no-table {
+    margin: 5px auto;
+    text-align: center; 
 }

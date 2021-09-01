@@ -528,6 +528,13 @@ def heading(dlat, dlon):
         return "N"
 
 
+def footerData():
+    return {
+        "alerts": len(alertlist),
+        "vehicles": len(trip_positions)
+    }
+
+
 def prettyDistance(dist, fig=1):
     return floor(round(dist, fig - 1 -floor(log10(dist))))
 
@@ -608,6 +615,31 @@ class TripTable(Table):
     classes = ["cleantable"]
 
 
+class VehicleTable(Table):
+    routecol = LinkCol("Route", "routeInfo",
+                       url_kwargs=dict(rquery="rname"),
+                       attr="route",
+                       th_html_attrs={"title": "Route"})
+    vehcol = LinkCol("Vehicle ID", "routeInfo",
+                     url_kwargs=dict(rquery="rname", trip="trip_id"),
+                     attr="vehicle",
+                     th_html_attrs={"title": "Assigned vehicle id"},
+                     td_html_attrs={"class": "centrecol"})
+    direction = Col("Direction",
+                    th_html_attrs={"title": "Direction of trip"},
+                    td_html_attrs={"class": "centrecol"})
+    departed = Col("Departed",
+                    th_html_attrs={"title":
+                                   "Time of departure from initial stop"},
+                    td_html_attrs={"class": "centrecol"})
+    status = Col("Status",
+                    th_html_attrs={"title":
+                                   "Status"})
+
+    table_id = "vehicletable"
+    classes = ["cleantable"]
+
+
 app = Flask(__name__)
 scheduler = APScheduler()
 scheduler.init_app(app)
@@ -683,8 +715,8 @@ def static_page():
 
 @app.route("/")
 def rti():
-    return render_template("main.html", routes=sortedRouteCodes(), nalerts =
-                           len(alertlist))
+    return render_template("main.html", routes=sortedRouteCodes(),
+                           footer=footerData())
 
 
 @app.route("/stop/")
@@ -704,8 +736,9 @@ def timetable(stop):
             parent = stopinfo[stopids[stop]]["parent_station"]
             if parent != "":
                 return redirect("/stop/{}/".format(parent.strip()), 302, None)
-        return render_template("nostop.html", error=req.status_code, nalerts =
-                           len(alertlist))
+        return render_template("nostop.html",
+                               error=req.status_code,
+                               footer=footerData())
     stopname = "Unknown Stop"
     if stop in stopids:
         stopname = stopinfo[stopids[stop]]["stop_name"]
@@ -745,7 +778,8 @@ def timetable(stop):
                            zone=rv["farezone"] if "farezone" in rv else "?",
                            lup=lastup.strftime("%H:%M:%S, %A %B %-d"),
                            table=tTable if len(ttdat) > 0 else None,
-                           alerts=rel_alerts, nalerts = len(alertlist))
+                           alerts=rel_alerts,
+                           footer=footerData())
 
 
 @app.route("/search/")
@@ -753,15 +787,14 @@ def stopsearch():
     query = request.args["q"].strip() if "q" in request.args else ""
     if query == "":
         return render_template("badsearch.html",
-                               lup=stoplastupdate.strftime("%A %B %-d"), nalerts =
-                               len(alertlist))
+                               lup=stoplastupdate.strftime("%A %B %-d"),
+                               footer=footerData())
     qlower = query.lower()
     ranknames = [(name, fuzz.token_set_ratio(name.lower(), qlower)) for name in
                list(stopnames.keys())]
     toprank = [tup for tup in ranknames if tup[1] > 40]
     if len(toprank) == 0:
-        return render_template("badsearch.html", nalerts =
-                           len(alertlist))
+        return render_template("badsearch.html", footer=footerData())
     toprank.sort(reverse=True, key=lambda a: a[1])
     stdat = [{"code": stopnames[name], "sms": stopinfo[stopids[stopnames[name]]]["parent_station"] if
               stopinfo[stopids[stopnames[name]]]["parent_station"] != "" else stopnames[name], "stop":
@@ -772,8 +805,8 @@ def stopsearch():
     return render_template("search.html", searchstring=query,
                            numres=len(stdat),
                            lup=stoplastupdate.strftime("%A %B %-d"),
-                           table=sTable if len(stdat) > 0 else "", nalerts =
-                           len(alertlist))
+                           table=sTable if len(stdat) > 0 else "",
+                           footer=footerData())
 
 
 @app.route("/route/")
@@ -796,8 +829,7 @@ def routeInfo(rquery):
     if rquery == "" or rquery not in routelist:
         return render_template("badroute.html", error="No such route",
                                lup=routeslastupdate.strftime("%A %B %-d"),
-                               routes=sortedRouteCodes(), nalerts =
-                               len(alertlist))
+                               routes=sortedRouteCodes(), footer=footerData())
     routeinfo = routelist[rquery]
     ra = request.args
     rtrip = ("trip" in ra and ra["trip"] != "" and ra["trip"] != "none")
@@ -829,7 +861,7 @@ def routeInfo(rquery):
         return render_template("badroute.html", error="No stops in route",
                                routes=sortedRouteCodes(),
                                lup=routeslastupdate.strftime("%A %B %-d"),
-                               nalerts=len(alertlist))
+                               footer=footerData())
     rmv = []
     for i in range(0, len(inds) - 1):
         if inds[i][0] == inds[i + 1][0]:
@@ -913,7 +945,7 @@ def routeInfo(rquery):
                                table=rTable if len(rstopsdat) > 0 else "",
                                direction=direction,
                                routes=sortedRouteCodes(),
-                               nalerts = len(alertlist), alerts = rel_alerts,
+                               footer=footerData(), alerts = rel_alerts,
                                valid_dates=vdates, datetable=datetable,
                                v_pos=vehdata, v_upd=veh_tup, vehicle=a_vid)
     else:
@@ -925,8 +957,6 @@ def routeInfo(rquery):
         rtrips = routetrips.get(routeinfo["route_id"])
         triptab = None
         if rtrips is not None and len(rtrips) > 0:
-            tripdays = {t: validDates(caldates.get(trip_serv.get(t))) for t in
-                        rtrips}
             tripsdat = [{"rname": rquery,
                          "trip_id": t,
                          "seq": trip_seq[t],
@@ -937,9 +967,9 @@ def routeInfo(rquery):
                          trip_positions[t]["start_time"]}
                         for t in rtrips if t in trip_positions]
             if len(tripsdat) > 0:
+                tripsdat.sort(key=lambda x: x["direction"])
                 tripsdat.sort(key=lambda x: int(x["seq"]) if x["seq"].isnumeric()
                               else 0)
-                tripsdat.sort(key=lambda x: x["direction"])
                 triptab = TripTable(tripsdat)
         all_stops = [s["code"] for s in rstopsdat]
         rel_alerts = [alert for alert in alertlist if route_code in
@@ -951,15 +981,15 @@ def routeInfo(rquery):
                                lup=routeslastupdate.strftime("%A %B %-d"),
                                trips=triptab,
                                routes=sortedRouteCodes(),
-                               nalerts = len(alertlist), alerts = rel_alerts)
+                               footer=footerData(), alerts = rel_alerts)
 
 @app.route("/stop/<string:stop>/nearby/")
 def nearbyStops(stop):
     if stop == "" or stop not in stopids:
         return render_template("badnearby.html",
                                error = "Stop not found",
-                               lup=stoplastupdate.strftime("%A %B %-d"), nalerts =
-                           len(alertlist))
+                               lup=stoplastupdate.strftime("%A %B %-d"),
+                               footer=footerData())
     thisstop = stopinfo[stopids[stop]]
     stopDistances = [{"id": x["stop_id"],
                       "parent": x["parent_station"],
@@ -976,8 +1006,8 @@ def nearbyStops(stop):
     if len(stopDistances) == 0:
         return render_template("badnearby.html",
                                error = "No nearby stops found",
-                               lup=stoplastupdate.strftime("%A %B %-d"), nalerts =
-                               len(alertlist))
+                               lup=stoplastupdate.strftime("%A %B %-d"),
+                               footer=footerData())
     stopDistances.sort(key=lambda x: x["dist2"])
     nstopsDat = [{"code": x["id"],
                   "sms": x["parent"] if x["parent"] != "" else
@@ -993,15 +1023,45 @@ def nearbyStops(stop):
                            name=thisstop["stop_name"],
                            zone=thisstop["zone_id"],
                            lup=stoplastupdate.strftime("%A %B %-d"),
-                           table=nTable, nalerts =
-                           len(alertlist))
+                           table=nTable, footer=footerData())
 
 @app.route("/alerts/")
 def showAllAlerts():
-    return render_template("alerts.html", alerts = alertlist, lup =
-                           alertslastupdate.strftime("%H:%M, %A %B %-d"), nalerts =
-                           len(alertlist))
+    return render_template("alerts.html", alerts=alertlist,
+                           lup=alertslastupdate,
+                           footer=footerData())
+
+
+@app.route("/vehicles/")
+def showAllVehicles():
+    vehdat = [{"rname": servroute.get(str(trip_positions[t]["route_id"])) if 
+               str(trip_positions[t]["route_id"]) in servroute else "",
+                 "route": servroute.get(str(trip_positions[t]["route_id"])) if 
+               str(trip_positions[t]["route_id"]) in servroute else "",
+                 "trip_id": t,
+                 "direction": "Outbound" if (trip_positions[t]["direction"] ==
+                                             "0") else "Inbound",
+                 "vehicle": trip_positions[t]["vehicle_id"],
+                 "departed": trip_positions[t]["start_time"],
+                 "delay": 0 if t not in trip_updates else
+                   trip_updates[t]["delay"],
+                 "status": "" if t not in trip_updates else (
+                     "On time" if abs(trip_updates[t]["delay"]) <= 30 else
+                     "{}m {}".format(round(abs(trip_updates[t]["delay"]) / 60),
+                                    "early" if trip_updates[t]["delay"] > 0
+                                     else "late")
+                 )}
+                for t in trip_positions]
+    vehdat.sort(key=lambda x: x["route"])
+    vehdat.sort(key=lambda x: x["departed"])
+    vehtab = None if len(vehdat) == 0 else VehicleTable(vehdat)
+    return render_template("vehicles.html", table=vehtab,
+                           lup=positionlastupdate,
+                           footer=footerData())
+
 
 
 if __name__ == "__main__":
     app.run()
+
+

@@ -1,10 +1,11 @@
-<title>RTI Anywhere</title>
+{% extends "base.html" %}
+{% import "forms.html" as forms %}
 
-<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}"  type="image/svg">
-<link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+{% block header %}
+    <title>RTI Anywhere</title>
+{% endblock header %}
 
-<body>
+{% block content %}
 
     <h1>Unofficial Metlink Wellington Real Time Anywhere</h1>
 
@@ -12,43 +13,12 @@
 
     <p class="explainer">Stop numbers are four-digit numbers that can be found on bus stop signs. For example Courtenay Place Stop A (westbound) is stop number <a href="/stop/5000/">5000</a>, while stop C (opposite) is stop number <a href="/stop/5516/">5516</a>.</p>
 
-<form id="stopform" action="/stop/">
-    <div class="fmain">
-        <div class="fcol">Bus stop number:</div>
-        <div class="fcol"><input type="number" id="stopnumber" name="stopnum" max="9999" min="0"></div>
-        <div class="fcol"><input type="submit" id="stopsubmit" value="Submit"></div>
-    </div>
-</form>
+    {{ forms.stop() }}
 
-{% if routes is not none and routes|length > 0 %}
-<form id="routeform" action="/route/">
-    <div class="fmain">
-        <div class="fcol">Route:</div>
-        <div class="fcol">
-            <select name="r" id="routeselect">
-                <option value="none" selected disabled hidden>Select</option>
-                {% for route in routes %}
-                <option value="{{ route }}">{{ route }}</option>
-                {% endfor %}
-            </select>
+    {% if routes is not none and routes|length > 0 %}
+        {{ forms.route(routes) }}
+    {% endif %}
 
-        </div>
-        <div class="fcol"><input type="submit" id="routesubmit" value="Submit"></div>
-    </div>
-</form>
-{% endif %}
+    {{ forms.search() }}
 
-<form id="searchform" action="/search/">
-    <div class="fmain">
-        <div class="fcol">Search for stop:</div>
-        <div class="fcol"><input type="text" id="searchquery" name="q"></div>
-        <div class="fcol"><input type="submit" id="searchsubmit" value="Search"></div>
-    </div>
-</form>
-
-<div id="info">
-    <p>{% if nalerts is defined %}<a href="/alerts/">{{ nalerts }} active service alerts</a> -{% endif %} Flask app by <a href="https://cloudisland.nz/@PetraOleum" target="_blank">@PetraOleum</a> - <a href="https://github.com/PetraOleum/RTI" target="_blank">Source code</a> - <em>Metlink please make your app faster, my phone is dying</em></p>
-</div>
-
-</body>
-
+{% endblock content %}
