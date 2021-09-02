@@ -1040,7 +1040,7 @@ def showAllVehicles():
                str(trip_positions[t]["route_id"]) in servroute else "",
                  "trip_id": t,
                  "direction": "Outbound" if (trip_positions[t]["direction"] ==
-                                             "0") else "Inbound",
+                                             0) else "Inbound",
                  "vehicle": trip_positions[t]["vehicle_id"],
                  "departed": trip_positions[t]["start_time"],
                  "delay": 0 if t not in trip_updates else
@@ -1048,16 +1048,40 @@ def showAllVehicles():
                  "status": "" if t not in trip_updates else (
                      "On time" if abs(trip_updates[t]["delay"]) <= 30 else
                      "{}m {}".format(round(abs(trip_updates[t]["delay"]) / 60),
-                                    "early" if trip_updates[t]["delay"] > 0
-                                     else "late")
+                                    "late" if trip_updates[t]["delay"] > 0
+                                     else "early")
                  )}
                 for t in trip_positions]
+    fdat = footerData()
     vehdat.sort(key=lambda x: x["route"])
     vehdat.sort(key=lambda x: x["departed"])
-    vehtab = None if len(vehdat) == 0 else VehicleTable(vehdat)
+    vehtab = None if fdat["vehicles"] == 0 else VehicleTable(vehdat)
+    stats = None
+    if fdat["vehicles"] > 0 and len(trip_updates) > 0:
+        delvals = [t["delay"] for t in vehdat]
+        val_n = len(delvals)
+        delvals.sort()
+        med = (delvals[val_n // 2] if val_n % 2 == 1
+               else (delvals[(val_n // 2) - 1] + delvals[val_n // 2])/2)
+        del5 = sum([1 for x in delvals if x > 60*5])
+        ear5 = sum([1 for x in delvals if x < -60*5])
+        stats = {"n": val_n,
+                 "early": ear5,
+                 "earlyp": round((ear5/val_n)*100),
+                 "late": del5,
+                 "latep": round((del5/val_n)*100),
+                 "median_abs": abs(med),
+                 "median_status": "early" if med < 0 else "late",
+                 "median_text": ("on time" if abs(med) <= 30
+                                 else "{} minute{} {}".format(
+                                     abs(round(med / 60)),
+                                     "" if abs(round(med/60)) == 1 else "s",
+                                     "early" if med < 0 else "late"))}
+
+
     return render_template("vehicles.html", table=vehtab,
-                           lup=positionlastupdate,
-                           footer=footerData())
+                           lup=positionlastupdate, stats=stats,
+                           footer=fdat)
 
 
 

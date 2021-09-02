@@ -337,3 +337,9 @@ li.alert-stops, li.alert-trips, li.alert-routes {
     margin: 5px auto;
     text-align: center; 
 }
+
+.stats {
+    text-align: center;
+    margin-top: 3px;
+    margin-bottom: 3px;
+}

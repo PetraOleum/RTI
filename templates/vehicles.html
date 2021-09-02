@@ -10,6 +10,11 @@
 
     <p class="lastupdated">Last updated at {{ lup.strftime("%H:%M, %A %B %-d") }}</p>
 
+    {% if stats is defined and stats is not none %}
+    <p class="stats">{{ stats["latep"] }}% ({{ stats["late"] }}) of services running more than 5 minutes late; {{ stats["earlyp"] }}% ({{ stats["early"] }}) running early.</p>
+    <p class="stats">The median service is <strong title='{{ stats["median_abs"] }} seconds {{ stats["median_status"] }}'>{{ stats["median_text"] }}</strong>.</p>
+    {% endif %}
+
     {% if table is none %}
     <p class="no-table">The vehicles are all asleep.</p>
     {% else %}
