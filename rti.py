@@ -1063,8 +1063,8 @@ def showAllVehicles():
         delvals.sort()
         med = (delvals[val_n // 2] if val_n % 2 == 1
                else (delvals[(val_n // 2) - 1] + delvals[val_n // 2])/2)
-        del5 = sum([1 for x in delvals if x > 60*5])
-        ear5 = sum([1 for x in delvals if x < -60*5])
+        del5 = sum([1 for x in delvals if x > 60*3])
+        ear5 = sum([1 for x in delvals if x < -60*3])
         stats = {"n": val_n,
                  "early": ear5,
                  "earlyp": round((ear5/val_n)*100),
