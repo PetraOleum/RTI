@@ -41,6 +41,18 @@ h1 {
     margin: 2px 0;
 }
 
+#inoutlink, #fullpartiallink {
+    text-align: center;
+    font-size: 0.8em;
+    margin: 6px 0;
+}
+
+#prevnextlink {
+    text-align: center;
+    font-size: 0.95em;
+    margin: 2px 0;
+}
+
 .typical-days {
     text-align: center;
     margin: 2px 0;
@@ -60,7 +72,12 @@ h1 {
     margin-bottom: 0.6em;
 }
 
-#vehicletable {
+.full-timetable {
+    margin-bottom: 0.5em;
+    white-space: nowrap;
+}
+
+#vehicletable, .full-timetable {
     margin-top: 5px;
 }
 
@@ -115,6 +132,16 @@ h1 {
 
 .cleantable thead {
     background-color: #dddddd;
+}
+
+
+@media only screen and (max-device-width: 768px) {
+    .full-timetable-container {
+        max-width: 95%;
+        overflow-x: scroll;
+        margin-left: auto;
+        margin-right: auto;
+    }
 }
 
 #info p{
@@ -343,3 +370,9 @@ li.alert-stops, li.alert-trips, li.alert-routes {
     margin-top: 3px;
     margin-bottom: 3px;
 }
+
+hr.section-divider {
+    max-width: 350px;
+    margin: 20px auto;
+}
+

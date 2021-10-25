@@ -14,7 +14,7 @@
     <p class="stopalerts"><a href="#alerts">View {{ alerts|length }} service alert{% if alerts|length != 1 %}s{% endif %} for this trip</a></p>
     {% endif %}
 
-    <p id="allstopslink">[<a href="/route/{{ code }}/">All stops associated with route {{ code }}</a>]</p>
+    <p id="allstopslink">[<a href="/route/{{ code }}/">All stops associated with route {{ code }}</a> | <a href="/timetable/{{ code }}/?stops=all">Full route {{ code }} timetable</a>]</p>
 
     {% if valid_dates is defined and valid_dates is not none %}
         <p id="typical-dates" class="typical-days">Valid <strong>{{ valid_dates["str"] }}</strong> from <strong>{{ valid_dates["min"].strftime("%-d %B") }}</strong> to <strong>{{ valid_dates["max"].strftime("%-d %B %Y") }}</strong></p>

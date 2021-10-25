@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, send_from_directory
 from flask_apscheduler import APScheduler
-from flask_table import Table, Col, LinkCol
+from flask_table import Table, Col, LinkCol, create_table
 from dateutil.parser import isoparse
 from dateutil.tz import gettz
 from math import cos, atan, pi, sqrt, log10, floor
@@ -15,6 +15,7 @@ import re
 import csv
 from urllib.parse import quote
 from fuzzywuzzy import fuzz
+import pandas as pd
 
 depStatus = {
     "onTime": "On time",
@@ -186,6 +187,7 @@ def loadZipDataset():
                 nval = {"id": row["stop_id"],
                         "time": row["departure_time"],
                         "tp": True if row["timepoint"] == "1" else False,
+                        "seq": row["stop_sequence"],
                         "sind": stopids.get(row["stop_id"])}
                 if row["trip_id"] in trip_stop_times:
                     trip_stop_times[row["trip_id"]].append(nval)
@@ -229,6 +231,7 @@ def loadZipDataset():
             "stop_pattern_trips.txt"), encoding="utf-8-sig") as spfile:
             trip_serv = {}
             trip_seq = {}
+            trip_sid = {}
             sptrows = csv.DictReader(spfile)
             for row in sptrows:
                 trip_serv[row["trip_id"]] = servfromtrip(row["trip_id"],
@@ -246,7 +249,8 @@ def loadZipDataset():
             for row in sptrows:
                 nval = {"id": row.get("stop_id"),
                         "seq": row.get("stop_sequence"),
-                        "sind": stopids.get(row.get("stop_id"))}
+                        "sind": stopids.get(row.get("stop_id")),
+                        "timepoint": row.get("timepoint") == "1"}
                 if row["stop_pattern_id"] in stop_patterns:
                     stop_patterns[row["stop_pattern_id"]].append(nval)
                 else:
@@ -537,6 +541,68 @@ def footerData():
 
 def prettyDistance(dist, fig=1):
     return floor(round(dist, fig - 1 -floor(log10(dist))))
+
+
+def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
+    if len(tripData) == 0:
+        return None
+    trip_ids = [trip["trip_id"] for trip in tripData]
+    trip_times = {tid: trip_stop_times[tid] for tid in trip_ids if tid in
+                  trip_stop_times}
+    start_times = {tid: trip_times[tid][0].get("time") for tid in trip_times}
+    trip_ids = [tid for tid in sorted(trip_ids, key=lambda x:
+                                      start_times.get(x)) if tid in
+                trip_stop_times]
+    long_d = [{
+        "trip_id": trip_id,
+        "stop_id": stopt.get("id"),
+        "sind": stopt.get("sind"),
+        "seq": stopt.get("seq"),
+        "time": stopt.get("time"),
+        "tp": stopt.get("tp")}
+        for trip_id in trip_times for stopt in trip_times[trip_id] if
+        stopt.get("tp") or not timepoints_only]
+    trip_long = pd.DataFrame(long_d)
+    trip_p = trip_long.pivot(index = ["stop_id", "sind"], columns = "trip_id", values =
+                             ["seq", "time", "tp"])
+    for trip_id in trip_ids:
+        trip_p[("time", trip_id)] = trip_p[("time", trip_id)].fillna('')
+        trip_p[("tp", trip_id)] = trip_p[("tp", trip_id)].fillna(False)
+    seqcols = trip_p.loc[:, [("seq", trip_id) for trip_id in trip_ids]]
+    trip_p["orderer"] = seqcols.apply(lambda x: max(
+        [int(y) for y in x if not pd.isna(y)]), axis=1)
+    trip_p["atp"] = trip_p.loc[:, [("tp", trip_id) for trip_id in
+                                   trip_ids]].apply(any, axis=1)
+    trip_p.sort_values("orderer", inplace=True)
+    trip_p.reset_index(inplace=True)
+    trip_p.columns = [''.join(col).strip() for col in trip_p.columns.values]
+    trip_p["names"] = [stopinfo[sid]["stop_name"] for sid in trip_p["sind"]]
+    trip_p["sms"] = [stopinfo[sid]["parent_station"] if
+                     stopinfo[sid]["parent_station"] != "" else
+                     stopinfo[sid]["stop_id"] for sid in trip_p["sind"]]
+    trip_p["stop_id"] = trip_p["sms"]
+    trip_p["zone"] = [stopinfo[sid]["zone_id"] for sid in trip_p["sind"]]
+    tt_dict = trip_p.to_dict('records')
+    table_spec = create_table().add_column("stop_id", LinkCol("Code",
+                                                              "timetable",
+                                                              url_kwargs=dict(stop="sms"),
+                                                             attr='stop_id'))
+    table_spec = table_spec.add_column("names", Col("Stop"))
+    table_spec = table_spec.add_column("zone", Col("Zone", td_html_attrs = {"class": "centrecol"}))
+    for trip in trip_ids:
+        table_spec = table_spec.add_column("time" + trip,
+                                           Col(start_times.get(trip)[:5],
+                                               td_html_attrs = {"class": "tcol"}))
+    tt_draft = table_spec(tt_dict)
+    tbody = tt_draft.tbody()
+    theader = "<th>Code</th>\n<th>Stop</th>\n<th>Zone</th>\n" + "\n".join([
+                "<th><a href='/route/{}/?trip={}'>{}</a></th>".format(
+                    quote(routeCode, safe=""), quote(tid, safe=""),
+                    start_times.get(tid)[:5]) for tid in trip_ids])
+    ttable = ("<table id='{}' class='cleantable full-timetable'>"
+              "<thead>\n{}\n</thead>\n{}\n</table>").format(tableID,
+                                               theader, tbody)
+    return(ttable)
 
 
 class TimeTable(Table):
@@ -982,6 +1048,61 @@ def routeInfo(rquery):
                                trips=triptab,
                                routes=sortedRouteCodes(),
                                footer=footerData(), alerts = rel_alerts)
+
+
+@app.route("/timetable/")
+def ttabse():
+    ra = request.args
+    if "r" in ra:
+        return redirect("/timetable/{}/".format(ra["r"].strip()), 302, None)
+    else:
+        return redirect("/", 303, None)
+
+
+@app.route("/timetable/<string:rquery>/")
+def routeTimetable(rquery):
+    if rquery == "" or rquery not in routelist:
+        return redirect("/", 303, None)
+    routeinfo = routelist[rquery]
+    route_name = routeinfo["route_long_name"]
+    ra = request.args
+    tponly = "stops" not in ra or ra["stops"] != "all"
+    todaydate = dt.datetime.now(patz).date()
+    try:
+        ttdate = dt.datetime.strptime(ra["date"], "%Y-%m-%d").date()
+    except:
+        ttdate = todaydate
+    route_trips = [x for x in triplist if x["route_id"] ==
+                   routeinfo["route_id"]]
+    day_trips = [trip for trip in route_trips if
+                 ttdate in [cdate.date() for cdate in
+                            caldates.get(trip_serv.get(trip["trip_id"]))]]
+    alldates = [caldates.get(trip_serv.get(trip["trip_id"])) for trip in
+                route_trips]
+    alldates = [cdate.date() for tripdays in alldates for cdate in tripdays]
+    alldates = list(set(alldates))
+    alldates.sort()
+    prevdates = [tripday for tripday in alldates if tripday < ttdate]
+    ldate = None if len(prevdates) == 0 else max(prevdates)
+    folldates = [tripday for tripday in alldates if tripday > ttdate]
+    ndate = None if len(folldates) == 0 else min(folldates)
+    # Outbound trips
+    out_trips = [trip for trip in day_trips if trip.get("direction_id") == "0"]
+    out_table = tripTimeTable(out_trips, rquery, "outbound-timetable", tponly)
+    # Inbound trips
+    in_trips = [trip for trip in day_trips if trip.get("direction_id") == "1"]
+    in_table = tripTimeTable(in_trips, rquery, "inbound-timetable", tponly)
+    return render_template("timetable.html", code=rquery,
+                           ttdate=ttdate,
+                           todaydate=todaydate,
+                           name=route_name,
+                           outbound=out_table,
+                           inbound=in_table,
+                           ldate=ldate,
+                           ndate=ndate,
+                           tponly=tponly,
+                           footer=footerData())
+
 
 @app.route("/stop/<string:stop>/nearby/")
 def nearbyStops(stop):

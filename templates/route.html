@@ -14,6 +14,8 @@
     <p class="stopalerts"><a href="#alerts">View {{ alerts|length }} service alert{% if alerts|length != 1 %}s{% endif %} for this route</a></p>
     {% endif %}
 
+    <p id="allstopslink">[<a href="/timetable/{{ code }}/?stops=all">Full route {{ code }} timetable</a>]</p>
+
     <p class="lastupdated">Route database last updated {{ lup }}</p>
 
     {{ table }}
