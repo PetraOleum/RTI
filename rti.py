@@ -1101,6 +1101,7 @@ def routeTimetable(rquery):
                            ldate=ldate,
                            ndate=ndate,
                            tponly=tponly,
+                           routes=sortedRouteCodes(),
                            footer=footerData())
 
 

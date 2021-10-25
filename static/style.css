@@ -75,6 +75,7 @@ h1 {
 .full-timetable {
     margin-bottom: 0.5em;
     white-space: nowrap;
+    font-size: 0.8em;
 }
 
 #vehicletable, .full-timetable {
@@ -115,6 +116,10 @@ h1 {
 .cleantable th, .cleantable td {
     border: 1px solid #ccc;
     padding: 15px 5px 10px 5px;
+}
+
+.full-timetable th, .full-timetable td {
+    padding: 10px 3px 7px 3px;
 }
 
 .cleantable tr:nth-child(even) {

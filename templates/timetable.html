@@ -55,7 +55,9 @@
         {{ forms.alertList(alerts) }}
     {% endif %}
 
-    <hr id="outbound" class="section-divider"/>
+    <hr class="section-divider"/>
+
+    {{ forms.timetable(routes, code) }}
 
 {% endblock content %}
 
