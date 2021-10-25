@@ -547,7 +547,10 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
     if len(tripData) == 0:
         return None
     trip_ids = [trip["trip_id"] for trip in tripData]
-    trip_times = {tid: trip_stop_times[tid] for tid in trip_ids if tid in
+    trip_times = {tid: trip_stop_times[tid][:-1] if
+                  trip_stop_times[tid][-1]["sind"] in
+                  [tst["sind"] for tst in trip_stop_times[tid][:-1]] else
+                  trip_stop_times[tid] for tid in trip_ids if tid in
                   trip_stop_times}
     start_times = {tid: trip_times[tid][0].get("time") for tid in trip_times}
     trip_ids = [tid for tid in sorted(trip_ids, key=lambda x:
@@ -576,6 +579,7 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
     trip_p.sort_values("orderer", inplace=True)
     trip_p.reset_index(inplace=True)
     trip_p.columns = [''.join(col).strip() for col in trip_p.columns.values]
+    print(trip_p)
     trip_p["names"] = [stopinfo[sid]["stop_name"] for sid in trip_p["sind"]]
     trip_p["sms"] = [stopinfo[sid]["parent_station"] if
                      stopinfo[sid]["parent_station"] != "" else
@@ -1087,7 +1091,7 @@ def routeTimetable(rquery):
     folldates = [tripday for tripday in alldates if tripday > ttdate]
     ndate = None if len(folldates) == 0 else min(folldates)
     # Outbound trips
-    out_trips = [trip for trip in day_trips if trip.get("direction_id") == "0"]
+    out_trips = [trip for trip in day_trips if trip.get("direction_id") != "1"]
     out_table = tripTimeTable(out_trips, rquery, "outbound-timetable", tponly)
     # Inbound trips
     in_trips = [trip for trip in day_trips if trip.get("direction_id") == "1"]
