@@ -718,11 +718,11 @@ class SelfAnchorCol(Col):
         )
 
 class TimeTableBase(Table):
-    anch = SelfAnchorCol("sdf", attr_list = dict(text="§"),
-                         td_html_attrs = {"class": "ac"})
     stop_id = LinkCol("Code", "timetable",
                       url_kwargs=dict(stop="sms"), attr='stop_id')
     names = Col("Stop")
+    anch = SelfAnchorCol("sdf", attr_list = dict(text="§"),
+                         td_html_attrs = {"class": "ac"})
     zone = Col("Zone", td_html_attrs = {"class": "centrecol"})
     
     def get_tr_attrs(self, item):
