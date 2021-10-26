@@ -29,11 +29,11 @@
     {% endif %}
 {%- endmacro %}
 
-{% macro timetable(routes, route_id=none) -%}
+{% macro timetable(routes, route_id=none, show_all=false, ttdate=none) -%}
     {% if routes is not none and routes|length > 0 %}
     <form id="routeform" action="/timetable/">
         <div class="fmain">
-            <div class="fcol">Timetable:</div>
+            <div class="fcol">Route timetable:</div>
             <div class="fcol">
                 <select name="r" id="routeselect">
                     {% if route_id is none %}
@@ -43,6 +43,12 @@
                     <option {% if route_id is not none and route_id == route %}selected{% endif %} value="{{ route }}">{{ route }}</option>
                     {% endfor %}
                 </select>
+                {% if show_all %}
+                <input type="hidden" name="stops" value="all"/>
+                {% endif %}
+                {% if ttdate is not none %}
+                <input type="hidden" name="date" value="{{ ttdate.strftime('%Y-%m-%d') }}"/>
+                {% endif %}
             </div>
             <div class="fcol"><input type="submit" id="routesubmit" value="Submit"></div>
         </div>

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, send_from_directory
+from flask import Flask, render_template, request, redirect, send_from_directory, url_for
 from flask_apscheduler import APScheduler
 from flask_table import Table, Col, LinkCol, create_table
 from dateutil.parser import isoparse
@@ -16,6 +16,7 @@ import csv
 from urllib.parse import quote
 from fuzzywuzzy import fuzz
 import pandas as pd
+from collections import Counter
 
 depStatus = {
     "onTime": "On time",
@@ -547,11 +548,31 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
     if len(tripData) == 0:
         return None
     trip_ids = [trip["trip_id"] for trip in tripData]
-    trip_times = {tid: trip_stop_times[tid][:-1] if
-                  trip_stop_times[tid][-1]["sind"] in
-                  [tst["sind"] for tst in trip_stop_times[tid][:-1]] else
-                  trip_stop_times[tid] for tid in trip_ids if tid in
+
+    trip_times = {tid: trip_stop_times[tid] for tid in trip_ids if tid in
                   trip_stop_times}
+    dupes = set()
+    for tid in trip_times:
+        counter = dict(Counter([x["sind"] for x in
+                                trip_times[tid]]))
+        dupes = dupes.union([x for x in counter if counter[x] > 1])
+        for i in range(0, len(trip_times[tid])):
+            trip_times[tid][i]["pin"] = 0
+
+    for tid in trip_times:
+        for d in dupes:
+            if len([x["sind"] for x in trip_times[tid][1:-1] if x["sind"] ==
+                    d and (x["tp"] or not timepoints_only)]) > 1:
+                return ("<p class='no-table'>This route is not structured in "
+                        "a way this app can display (it's probably a loop). "
+                        "See <a target='_blank' rel='external' "
+                        "href='https://www.metlink.org.nz/service/{}/timetable'>the metlink website</a> "
+                        "for an accurate rendering.</p>").format(routeCode)
+        if trip_times[tid][0]["sind"] in dupes:
+            trip_times[tid][0]["pin"] = -1
+        if trip_times[tid][-1]["sind"] in dupes:
+            trip_times[tid][-1]["pin"] = 1
+
     start_times = {tid: trip_times[tid][0].get("time") for tid in trip_times}
     trip_ids = [tid for tid in sorted(trip_ids, key=lambda x:
                                       start_times.get(x)) if tid in
@@ -559,6 +580,7 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
     long_d = [{
         "trip_id": trip_id,
         "stop_id": stopt.get("id"),
+        "pin": stopt.get("pin"),
         "sind": stopt.get("sind"),
         "seq": stopt.get("seq"),
         "time": stopt.get("time"),
@@ -566,8 +588,9 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
         for trip_id in trip_times for stopt in trip_times[trip_id] if
         stopt.get("tp") or not timepoints_only]
     trip_long = pd.DataFrame(long_d)
-    trip_p = trip_long.pivot(index = ["stop_id", "sind"], columns = "trip_id", values =
-                             ["seq", "time", "tp"])
+    trip_p = trip_long.pivot(index = ["stop_id", "sind", "pin"],
+                             columns = "trip_id",
+                             values = ["seq", "time", "tp"])
     for trip_id in trip_ids:
         trip_p[("time", trip_id)] = trip_p[("time", trip_id)].fillna('')
         trip_p[("tp", trip_id)] = trip_p[("tp", trip_id)].fillna(False)
@@ -576,30 +599,33 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
         [int(y) for y in x if not pd.isna(y)]), axis=1)
     trip_p["atp"] = trip_p.loc[:, [("tp", trip_id) for trip_id in
                                    trip_ids]].apply(any, axis=1)
-    trip_p.sort_values("orderer", inplace=True)
+    trip_p.sort_values(["orderer", "pin"], inplace=True)
     trip_p.reset_index(inplace=True)
     trip_p.columns = [''.join(col).strip() for col in trip_p.columns.values]
-    print(trip_p)
     trip_p["names"] = [stopinfo[sid]["stop_name"] for sid in trip_p["sind"]]
     trip_p["sms"] = [stopinfo[sid]["parent_station"] if
                      stopinfo[sid]["parent_station"] != "" else
                      stopinfo[sid]["stop_id"] for sid in trip_p["sind"]]
     trip_p["stop_id"] = trip_p["sms"]
     trip_p["zone"] = [stopinfo[sid]["zone_id"] for sid in trip_p["sind"]]
+    trip_p["rowid"] = trip_p.apply(lambda x:
+                                   "{}-stop-{}".format(tableID, x["sms"]) if
+                                      x["pin"] == 0 else
+                                      "{}-stop-{}-{}".format(tableID,
+                                                             x["sms"],
+                                                          x["pin"]),
+                                      axis=1)
     tt_dict = trip_p.to_dict('records')
-    table_spec = create_table().add_column("stop_id", LinkCol("Code",
-                                                              "timetable",
-                                                              url_kwargs=dict(stop="sms"),
-                                                             attr='stop_id'))
-    table_spec = table_spec.add_column("names", Col("Stop"))
-    table_spec = table_spec.add_column("zone", Col("Zone", td_html_attrs = {"class": "centrecol"}))
+
+    table_spec = create_table(base=TimeTableBase)
+
     for trip in trip_ids:
         table_spec = table_spec.add_column("time" + trip,
                                            Col(start_times.get(trip)[:5],
                                                td_html_attrs = {"class": "tcol"}))
     tt_draft = table_spec(tt_dict)
     tbody = tt_draft.tbody()
-    theader = "<th>Code</th>\n<th>Stop</th>\n<th>Zone</th>\n" + "\n".join([
+    theader = "<th></th><th>Code</th>\n<th>Stop</th>\n<th>Zone</th>\n" + "\n".join([
                 "<th><a href='/route/{}/?trip={}'>{}</a></th>".format(
                     quote(routeCode, safe=""), quote(tid, safe=""),
                     start_times.get(tid)[:5]) for tid in trip_ids])
@@ -683,6 +709,27 @@ class TripTable(Table):
                     td_html_attrs={"class": "centrecol"})
     table_id = "triptable"
     classes = ["cleantable"]
+
+
+class SelfAnchorCol(Col):
+    def td_contents(self, item, attr_list):
+        return "<a href='#{}'>{}</a>".format(
+            item["rowid"], attr_list["text"]
+        )
+
+class TimeTableBase(Table):
+    anch = SelfAnchorCol("sdf", attr_list = dict(text="§"),
+                         td_html_attrs = {"class": "ac"})
+    stop_id = LinkCol("Code", "timetable",
+                      url_kwargs=dict(stop="sms"), attr='stop_id')
+    names = Col("Stop")
+    zone = Col("Zone", td_html_attrs = {"class": "centrecol"})
+    
+    def get_tr_attrs(self, item):
+        tratts = {"id": item["rowid"]}
+        if item.get("atp"):
+            tratts.update({"class": "timepoint"})
+        return tratts
 
 
 class VehicleTable(Table):
@@ -1058,7 +1105,8 @@ def routeInfo(rquery):
 def ttabse():
     ra = request.args
     if "r" in ra:
-        return redirect("/timetable/{}/".format(ra["r"].strip()), 302, None)
+        return redirect(url_for("routeTimetable", rquery=ra["r"],
+                                date = ra.get("date"), stops = ra.get("stops")), 302, None)
     else:
         return redirect("/", 303, None)
 

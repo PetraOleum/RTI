@@ -381,3 +381,10 @@ hr.section-divider {
     margin: 20px auto;
 }
 
+td.ac a {
+    opacity: 0.4;
+}
+
+td.ac {
+    font-size: 0.8em;
+}
