@@ -625,7 +625,7 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
                                                td_html_attrs = {"class": "tcol"}))
     tt_draft = table_spec(tt_dict)
     tbody = tt_draft.tbody()
-    theader = "<th></th><th>Code</th>\n<th>Stop</th>\n<th>Zone</th>\n" + "\n".join([
+    theader = "<th>Code</th>\n<th>Stop</th><th></th>\n<th>Zone</th>\n" + "\n".join([
                 "<th><a href='/route/{}/?trip={}'>{}</a></th>".format(
                     quote(routeCode, safe=""), quote(tid, safe=""),
                     start_times.get(tid)[:5]) for tid in trip_ids])
