@@ -100,7 +100,7 @@ def servfromtrip(trip_id, ag_ids):
 
 def downloadZipDataset():
     print("Downloading zip of GTFS metadata")
-    req = requests.get(zipurl)
+    req = requests.get(zipurl, timeout=10)
     with open("GTFS_full.zip", 'wb') as df:
         for chunk in req.iter_content(chunk_size=128):
             df.write(chunk)
@@ -276,7 +276,7 @@ def updateFeedInfo(force=False):
     nowtime = dt.datetime.now(patz)
     tstoday = nowtime.strftime("%Y%m%d")
     if force or "feed_end_date" not in feedinfo or feedinfo["feed_end_date"] < tstoday:
-        req = requests.get(feedinfourl, headers=headers)
+        req = requests.get(feedinfourl, headers=headers, timeout=10)
         if req.status_code != 200:
             print("Failed to update feed_info metadata at {}.".format(
                 nowtime.strftime("%c")))
@@ -309,7 +309,7 @@ def updateAlerts(force=False):
     global alertslastupdate
     nowtime = dt.datetime.now(patz)
     if force or (nowtime - alertslastupdate).seconds >= 60 * 5:
-        req = requests.get(alertsurl, headers=headers)
+        req = requests.get(alertsurl, headers=headers, timeout=10)
         if req.status_code != 200:
             return
         talerts = req.json()
@@ -365,7 +365,7 @@ def updateAlerts(force=False):
 def updatePositions():
     global trip_positions
     global positionlastupdate
-    req = requests.get(positionurl, headers=headers)
+    req = requests.get(positionurl, headers=headers, timeout=10)
     if req.status_code != 200:
         return
     posdata = req.json()
@@ -406,7 +406,7 @@ def updatePositions():
 
 def updateTripUpdates():
     global trip_updates
-    req = requests.get(tripupdatesurl, headers=headers)
+    req = requests.get(tripupdatesurl, headers=headers, timeout=10)
     if req.status_code != 200:
         return
     updata = req.json()
@@ -847,7 +847,8 @@ def Search():
 
 @app.route("/stop/<string:stop>/")
 def timetable(stop):
-    req = requests.get(depurl, params={"stop_id": stop}, headers=headers)
+    req = requests.get(depurl, params={"stop_id": stop}, headers=headers,
+                       timeout=20)
     if req.status_code != 200:
         if stop in stopids:
             parent = stopinfo[stopids[stop]]["parent_station"]
