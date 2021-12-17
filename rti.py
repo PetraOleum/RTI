@@ -7,6 +7,7 @@ from math import cos, atan, pi, sqrt, log10, floor
 from os.path import exists
 from io import TextIOWrapper as textwrap
 from sys import getsizeof
+from functools import cmp_to_key
 import zipfile
 import datetime as dt
 import time
@@ -16,6 +17,7 @@ import csv
 from urllib.parse import quote
 from fuzzywuzzy import fuzz
 import pandas as pd
+from numpy import argsort
 from collections import Counter
 
 depStatus = {
@@ -559,15 +561,11 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
         for i in range(0, len(trip_times[tid])):
             trip_times[tid][i]["pin"] = 0
 
+    print(dupes)
     for tid in trip_times:
-        for d in dupes:
-            if len([x["sind"] for x in trip_times[tid][1:-1] if x["sind"] ==
-                    d and (x["tp"] or not timepoints_only)]) > 1:
-                return ("<p class='no-table'>This route is not structured in "
-                        "a way this app can display (it's probably a loop). "
-                        "See <a target='_blank' rel='external' "
-                        "href='https://www.metlink.org.nz/service/{}/timetable'>the metlink website</a> "
-                        "for an accurate rendering.</p>").format(routeCode)
+        duinds = [ind for ind, x in enumerate(trip_times[tid]) if x["sind"] in dupes]
+        for ind in duinds:
+            trip_times[tid][ind]["pin"] = ind + 2
         if trip_times[tid][0]["sind"] in dupes:
             trip_times[tid][0]["pin"] = -1
         if trip_times[tid][-1]["sind"] in dupes:
@@ -591,6 +589,10 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
     trip_p = trip_long.pivot(index = ["stop_id", "sind", "pin"],
                              columns = "trip_id",
                              values = ["seq", "time", "tp"])
+
+
+    #trip_p.sort_values(list(zip(["time"] * len(trip_ids), trip_ids)),
+    #                   key=cmp_to_key(cmpttrows), inplace=True)
     for trip_id in trip_ids:
         trip_p[("time", trip_id)] = trip_p[("time", trip_id)].fillna('')
         trip_p[("tp", trip_id)] = trip_p[("tp", trip_id)].fillna(False)
@@ -599,9 +601,39 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
         [int(y) for y in x if not pd.isna(y)]), axis=1)
     trip_p["atp"] = trip_p.loc[:, [("tp", trip_id) for trip_id in
                                    trip_ids]].apply(any, axis=1)
+
     trip_p.sort_values(["orderer", "pin"], inplace=True)
     trip_p.reset_index(inplace=True)
     trip_p.columns = [''.join(col).strip() for col in trip_p.columns.values]
+
+    relcols = ["time" + tid for tid in trip_ids]
+
+    def cmpttrows(rowi1, rowi2):
+        row1 = trip_p.loc[:, relcols].iloc[rowi1].replace('', pd.NA)
+        row2 = trip_p.loc[:, relcols].iloc[rowi2].replace('', pd.NA)
+        #print(pd.DataFrame([row1, row2, row1 > row2, row1 < row2]))
+        #print(row1[6])
+        #print(row2[6])
+        #print(any(row1 > row2))
+        #print(any(row1 < row2))
+        #print(row1[6] > row2[6])
+        #print(row1[6] < row2[6])
+        #print()
+        if any(row1 > row2):
+            return 1
+        elif any(row1 < row2):
+            return -1
+        else:
+            return 0
+
+    excols = list(range(0, trip_p.shape[0]))
+    print(excols)
+    excols.sort(key=cmp_to_key(cmpttrows))
+    print(excols)
+    print(argsort(excols))
+    #trip_p["fullsort"] = pd.Series(excols)
+    trip_p["fullsort"] = argsort(excols)
+    trip_p.sort_values("fullsort", inplace=True)
     trip_p["names"] = [stopinfo[sid]["stop_name"] for sid in trip_p["sind"]]
     trip_p["sms"] = [stopinfo[sid]["parent_station"] if
                      stopinfo[sid]["parent_station"] != "" else
