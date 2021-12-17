@@ -615,7 +615,14 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
         elif any(row1 < row2):
             return -1
         else:
-            return 0
+            fr1 = min([x for x, q in enumerate(row1) if q is not pd.NA])
+            fr2 = min([x for x, q in enumerate(row2) if q is not pd.NA])
+            if fr1 > fr2:
+                return 1
+            elif fr1 < fr2:
+                return -1
+            else:
+                return 0
 
     excols = list(range(0, trip_p.shape[0]))
     excols.sort(key=cmp_to_key(cmpttrows))
