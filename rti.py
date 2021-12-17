@@ -1128,10 +1128,11 @@ def routeTimetable(rquery):
     route_trips = [x for x in triplist if x["route_id"] ==
                    routeinfo["route_id"]]
     day_trips = [trip for trip in route_trips if
+                 caldates.get(trip_serv.get(trip["trip_id"])) is not None and
                  ttdate in [cdate.date() for cdate in
                             caldates.get(trip_serv.get(trip["trip_id"]))]]
     alldates = [caldates.get(trip_serv.get(trip["trip_id"])) for trip in
-                route_trips]
+                route_trips if trip_serv.get(trip["trip_id"]) in caldates]
     alldates = [cdate.date() for tripdays in alldates for cdate in tripdays]
     alldates = list(set(alldates))
     alldates.sort()
