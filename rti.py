@@ -611,14 +611,6 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
     def cmpttrows(rowi1, rowi2):
         row1 = trip_p.loc[:, relcols].iloc[rowi1].replace('', pd.NA)
         row2 = trip_p.loc[:, relcols].iloc[rowi2].replace('', pd.NA)
-        #print(pd.DataFrame([row1, row2, row1 > row2, row1 < row2]))
-        #print(row1[6])
-        #print(row2[6])
-        #print(any(row1 > row2))
-        #print(any(row1 < row2))
-        #print(row1[6] > row2[6])
-        #print(row1[6] < row2[6])
-        #print()
         if any(row1 > row2):
             return 1
         elif any(row1 < row2):
@@ -627,11 +619,7 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
             return 0
 
     excols = list(range(0, trip_p.shape[0]))
-    print(excols)
     excols.sort(key=cmp_to_key(cmpttrows))
-    print(excols)
-    print(argsort(excols))
-    #trip_p["fullsort"] = pd.Series(excols)
     trip_p["fullsort"] = argsort(excols)
     trip_p.sort_values("fullsort", inplace=True)
     trip_p["names"] = [stopinfo[sid]["stop_name"] for sid in trip_p["sind"]]
