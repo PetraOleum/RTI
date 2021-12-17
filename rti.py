@@ -561,7 +561,6 @@ def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
         for i in range(0, len(trip_times[tid])):
             trip_times[tid][i]["pin"] = 0
 
-    print(dupes)
     for tid in trip_times:
         duinds = [ind for ind, x in enumerate(trip_times[tid]) if x["sind"] in dupes]
         for ind in duinds:
