@@ -784,7 +784,8 @@ class VehicleTable(Table):
     classes = ["cleantable"]
 
 
-cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
+cache = Cache(config={'CACHE_TYPE': 'FileSystemCache',
+                      'CACHE_DIR': '/tmp/RTI-cache/'})
 app = Flask(__name__)
 scheduler = APScheduler()
 scheduler.init_app(app)
