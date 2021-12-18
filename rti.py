@@ -19,6 +19,7 @@ from fuzzywuzzy import fuzz
 import pandas as pd
 from numpy import argsort
 from collections import Counter
+from flask_caching import Cache
 
 depStatus = {
     "onTime": "On time",
@@ -783,10 +784,12 @@ class VehicleTable(Table):
     classes = ["cleantable"]
 
 
+cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
 app = Flask(__name__)
 scheduler = APScheduler()
 scheduler.init_app(app)
 scheduler.start()
+cache.init_app(app)
 
 app.apscheduler.add_job(func=updateFeedInfo, trigger="cron", args=[True],
                         minute='11', hour='3', id="ufeedinfo")
@@ -1139,6 +1142,7 @@ def ttabse():
 
 
 @app.route("/timetable/<string:rquery>/")
+@cache.cached(timeout=7200, query_string=True)
 def routeTimetable(rquery):
     if rquery == "" or rquery not in routelist:
         return redirect("/", 303, None)
