@@ -784,7 +784,9 @@ class VehicleTable(Table):
     classes = ["cleantable"]
 
 
-cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
+cache = Cache(config={'CACHE_TYPE': 'FileSystemCache',
+                      'CACHE_DIR': '/tmp/RTI-cache/',
+                      'CACHE_THRESHOLD': 50})
 app = Flask(__name__)
 scheduler = APScheduler()
 scheduler.init_app(app)
@@ -1142,7 +1144,7 @@ def ttabse():
 
 
 @app.route("/timetable/<string:rquery>/")
-@cache.cached(timeout=7200, query_string=True)
+@cache.cached(timeout=3600, query_string=True)
 def routeTimetable(rquery):
     if rquery == "" or rquery not in routelist:
         return redirect("/", 303, None)
