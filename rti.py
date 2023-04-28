@@ -77,6 +77,21 @@ routeslastupdate = dt.datetime.now(patz) - dt.timedelta(days=14)
 alertslastupdate = dt.datetime.now(patz) - dt.timedelta(seconds=60*20)
 positionlastupdate = dt.datetime.now(patz) - dt.timedelta(seconds=60*20)
 
+def dictget(obj, levels, replace=None, replace_present=False):
+    t_obj = obj
+    for l in levels:
+        if l in t_obj:
+            t_obj = t_obj.get(l)
+            if t_obj is None:
+                if replace_present:
+                    return replace
+                else:
+                    return t_obj
+        else:
+            return replace
+    return t_obj
+
+
 def servfromtrip(trip_id, ag_ids):
     for ag in ag_ids:
         agpos = trip_id.find("__" + ag + "__")
@@ -374,19 +389,33 @@ def updatePositions():
         try:
             tid = entity["vehicle"]["trip"]["trip_id"]
             tpdict[tid] = {
-                "direction": entity["vehicle"]["trip"]["direction_id"],
-                "route_id": entity["vehicle"]["trip"]["route_id"],
-                "start_time": entity["vehicle"]["trip"]["start_time"],
-                "bearing": entity["vehicle"]["position"]["bearing"],
-                "lat": entity["vehicle"]["position"]["latitude"],
-                "lon": entity["vehicle"]["position"]["longitude"],
-                "vehicle_id": entity["vehicle"]["vehicle"]["id"],
+                "direction": dictget(entity, ["vehicle", "trip",
+                                              "direction_id"]),
+                "route_id": dictget(entity, ["vehicle", "trip", "route_id"]),
+                "start_time": dictget(entity,
+                                      ["vehicle", "trip", "start_time"],
+                       dictget(entity,
+                                       ["vehicle", "trip", "start_date"],
+                                       "", True), True),
+                "bearing": dictget(entity, ["vehicle", "vehicle", "bearing"], 0,
+                              True),
+                "lat": dictget(entity, ["vehicle", "vehicle", "latitude"], 0,
+                              True),
+                "lon": dictget(entity, ["vehicle", "vehicle", "longitude"], 0,
+                              True),
+                "speed": dictget(entity, ["vehicle", "vehicle", "speed"], 0,
+                              True),
+                "vehicle_id": dictget(entity, ["vehicle", "vehicle", "id"]),
                 "timestamp": dt.datetime.fromtimestamp(
-                    entity["vehicle"]["timestamp"], patz)
+                    dictget(entity, ["vehicle", "timestamp"], 0), patz)
             }
-        except:
-            print("Error handling vehicle entity")
+        except Exception as e:
+            extime = dt.datetime.now(patz)
+            print(("Error handling vehicle entity at {}:").format(
+                extime.strftime("%c %Z")))
             print(entity)
+            print(e)
+            print()
     if len(tpdict) > 0:
         seenveh = [tpdict[t]["vehicle_id"] for t in tpdict]
         keepovers = {t: trip_positions[t] for t in trip_positions if t not in
@@ -420,9 +449,13 @@ def updateTripUpdates():
             tstamp = dt.datetime.fromtimestamp(tup.get("timestamp"), patz)
             vid = tup.get("vehicle").get("id")
             updict[tid] = {"delay": delay, "sr": s_r, "ts": tstamp, "vid": vid}
-        except:
-            print("Error handling update entity")
+        except Exception as e:
+            extime = dt.datetime.now(patz)
+            print(("Error handling update entity at {}:").format(
+                extime.strftime("%c %Z")))
             print(entity)
+            print(e)
+            print()
     if len(updict) > 0:
         seenveh = [updict[t]["vid"] for t in updict]
         keepovers = {t: trip_updates[t] for t in trip_updates if t not in
