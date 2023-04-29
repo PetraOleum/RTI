@@ -1,12 +1,13 @@
-from flask import Flask, render_template, request, redirect, send_from_directory
+from flask import Flask, render_template, request, redirect, send_from_directory, url_for
 from flask_apscheduler import APScheduler
-from flask_table import Table, Col, LinkCol
+from flask_table import Table, Col, LinkCol, create_table
 from dateutil.parser import isoparse
 from dateutil.tz import gettz
 from math import cos, atan, pi, sqrt, log10, floor
 from os.path import exists
 from io import TextIOWrapper as textwrap
 from sys import getsizeof
+from functools import cmp_to_key
 import zipfile
 import datetime as dt
 import time
@@ -15,6 +16,10 @@ import re
 import csv
 from urllib.parse import quote
 from fuzzywuzzy import fuzz
+import pandas as pd
+from numpy import argsort
+from collections import Counter
+from flask_caching import Cache
 
 depStatus = {
     "onTime": "On time",
@@ -113,7 +118,7 @@ def servfromtrip(trip_id, ag_ids):
 
 def downloadZipDataset():
     print("Downloading zip of GTFS metadata")
-    req = requests.get(zipurl)
+    req = requests.get(zipurl, timeout=10)
     with open("GTFS_full.zip", 'wb') as df:
         for chunk in req.iter_content(chunk_size=128):
             df.write(chunk)
@@ -201,6 +206,7 @@ def loadZipDataset():
                 nval = {"id": row["stop_id"],
                         "time": row["departure_time"],
                         "tp": True if row["timepoint"] == "1" else False,
+                        "seq": row["stop_sequence"],
                         "sind": stopids.get(row["stop_id"])}
                 if row["trip_id"] in trip_stop_times:
                     trip_stop_times[row["trip_id"]].append(nval)
@@ -244,6 +250,7 @@ def loadZipDataset():
             "stop_pattern_trips.txt"), encoding="utf-8-sig") as spfile:
             trip_serv = {}
             trip_seq = {}
+            trip_sid = {}
             sptrows = csv.DictReader(spfile)
             for row in sptrows:
                 trip_serv[row["trip_id"]] = servfromtrip(row["trip_id"],
@@ -261,7 +268,8 @@ def loadZipDataset():
             for row in sptrows:
                 nval = {"id": row.get("stop_id"),
                         "seq": row.get("stop_sequence"),
-                        "sind": stopids.get(row.get("stop_id"))}
+                        "sind": stopids.get(row.get("stop_id")),
+                        "timepoint": row.get("timepoint") == "1"}
                 if row["stop_pattern_id"] in stop_patterns:
                     stop_patterns[row["stop_pattern_id"]].append(nval)
                 else:
@@ -286,7 +294,7 @@ def updateFeedInfo(force=False):
     nowtime = dt.datetime.now(patz)
     tstoday = nowtime.strftime("%Y%m%d")
     if force or "feed_end_date" not in feedinfo or feedinfo["feed_end_date"] < tstoday:
-        req = requests.get(feedinfourl, headers=headers)
+        req = requests.get(feedinfourl, headers=headers, timeout=10)
         if req.status_code != 200:
             print("Failed to update feed_info metadata at {}.".format(
                 nowtime.strftime("%c")))
@@ -319,7 +327,7 @@ def updateAlerts(force=False):
     global alertslastupdate
     nowtime = dt.datetime.now(patz)
     if force or (nowtime - alertslastupdate).seconds >= 60 * 5:
-        req = requests.get(alertsurl, headers=headers)
+        req = requests.get(alertsurl, headers=headers, timeout=10)
         if req.status_code != 200:
             return
         talerts = req.json()
@@ -375,7 +383,7 @@ def updateAlerts(force=False):
 def updatePositions():
     global trip_positions
     global positionlastupdate
-    req = requests.get(positionurl, headers=headers)
+    req = requests.get(positionurl, headers=headers, timeout=10)
     if req.status_code != 200:
         return
     posdata = req.json()
@@ -430,7 +438,7 @@ def updatePositions():
 
 def updateTripUpdates():
     global trip_updates
-    req = requests.get(tripupdatesurl, headers=headers)
+    req = requests.get(tripupdatesurl, headers=headers, timeout=10)
     if req.status_code != 200:
         return
     updata = req.json()
@@ -572,6 +580,121 @@ def prettyDistance(dist, fig=1):
     return floor(round(dist, fig - 1 -floor(log10(dist))))
 
 
+def tripTimeTable(tripData, routeCode, tableID, timepoints_only = False):
+    if len(tripData) == 0:
+        return None
+    trip_ids = [trip["trip_id"] for trip in tripData]
+
+    trip_times = {tid: trip_stop_times[tid] for tid in trip_ids if tid in
+                  trip_stop_times}
+    dupes = set()
+    for tid in trip_times:
+        counter = dict(Counter([x["sind"] for x in
+                                trip_times[tid]]))
+        dupes = dupes.union([x for x in counter if counter[x] > 1])
+        for i in range(0, len(trip_times[tid])):
+            trip_times[tid][i]["pin"] = 0
+
+    for tid in trip_times:
+        duinds = [ind for ind, x in enumerate(trip_times[tid]) if x["sind"] in dupes]
+        for ind in duinds:
+            trip_times[tid][ind]["pin"] = ind + 2
+        if trip_times[tid][0]["sind"] in dupes:
+            trip_times[tid][0]["pin"] = -1
+        if trip_times[tid][-1]["sind"] in dupes:
+            trip_times[tid][-1]["pin"] = 1
+
+    start_times = {tid: trip_times[tid][0].get("time") for tid in trip_times}
+    trip_ids = [tid for tid in sorted(trip_ids, key=lambda x:
+                                      start_times.get(x)) if tid in
+                trip_stop_times]
+    long_d = [{
+        "trip_id": trip_id,
+        "stop_id": stopt.get("id"),
+        "pin": stopt.get("pin"),
+        "sind": stopt.get("sind"),
+        "seq": stopt.get("seq"),
+        "time": stopt.get("time"),
+        "tp": stopt.get("tp")}
+        for trip_id in trip_times for stopt in trip_times[trip_id] if
+        stopt.get("tp") or not timepoints_only]
+    trip_long = pd.DataFrame(long_d)
+    trip_p = trip_long.pivot(index = ["stop_id", "sind", "pin"],
+                             columns = "trip_id",
+                             values = ["seq", "time", "tp"])
+
+
+    #trip_p.sort_values(list(zip(["time"] * len(trip_ids), trip_ids)),
+    #                   key=cmp_to_key(cmpttrows), inplace=True)
+    for trip_id in trip_ids:
+        trip_p[("time", trip_id)] = trip_p[("time", trip_id)].fillna('')
+        trip_p[("tp", trip_id)] = trip_p[("tp", trip_id)].fillna(False)
+    seqcols = trip_p.loc[:, [("seq", trip_id) for trip_id in trip_ids]]
+    trip_p["orderer"] = seqcols.apply(lambda x: max(
+        [int(y) for y in x if not pd.isna(y)]), axis=1)
+    trip_p["atp"] = trip_p.loc[:, [("tp", trip_id) for trip_id in
+                                   trip_ids]].apply(any, axis=1)
+
+    trip_p.sort_values(["orderer", "pin"], inplace=True)
+    trip_p.reset_index(inplace=True)
+    trip_p.columns = [''.join(col).strip() for col in trip_p.columns.values]
+
+    relcols = ["time" + tid for tid in trip_ids]
+
+    def cmpttrows(rowi1, rowi2):
+        row1 = trip_p.loc[:, relcols].iloc[rowi1].replace('', pd.NA)
+        row2 = trip_p.loc[:, relcols].iloc[rowi2].replace('', pd.NA)
+        if any(row1 > row2):
+            return 1
+        elif any(row1 < row2):
+            return -1
+        else:
+            fr1 = min([x for x, q in enumerate(row1) if q is not pd.NA])
+            fr2 = min([x for x, q in enumerate(row2) if q is not pd.NA])
+            if fr1 > fr2:
+                return 1
+            elif fr1 < fr2:
+                return -1
+            else:
+                return 0
+
+    excols = list(range(0, trip_p.shape[0]))
+    excols.sort(key=cmp_to_key(cmpttrows))
+    trip_p["fullsort"] = argsort(excols)
+    trip_p.sort_values("fullsort", inplace=True)
+    trip_p["names"] = [stopinfo[sid]["stop_name"] for sid in trip_p["sind"]]
+    trip_p["sms"] = [stopinfo[sid]["parent_station"] if
+                     stopinfo[sid]["parent_station"] != "" else
+                     stopinfo[sid]["stop_id"] for sid in trip_p["sind"]]
+    trip_p["stop_id"] = trip_p["sms"]
+    trip_p["zone"] = [stopinfo[sid]["zone_id"] for sid in trip_p["sind"]]
+    trip_p["rowid"] = trip_p.apply(lambda x:
+                                   "{}-stop-{}".format(tableID, x["sms"]) if
+                                      x["pin"] == 0 else
+                                      "{}-stop-{}-{}".format(tableID,
+                                                             x["sms"],
+                                                          x["pin"]),
+                                      axis=1)
+    tt_dict = trip_p.to_dict('records')
+
+    table_spec = create_table(base=TimeTableBase)
+
+    for trip in trip_ids:
+        table_spec = table_spec.add_column("time" + trip,
+                                           Col(start_times.get(trip)[:5],
+                                               td_html_attrs = {"class": "tcol"}))
+    tt_draft = table_spec(tt_dict)
+    tbody = tt_draft.tbody()
+    theader = "<th>Code</th>\n<th>Stop</th><th></th>\n<th>Zone</th>\n" + "\n".join([
+                "<th><a href='/route/{}/?trip={}'>{}</a></th>".format(
+                    quote(routeCode, safe=""), quote(tid, safe=""),
+                    start_times.get(tid)[:5]) for tid in trip_ids])
+    ttable = ("<table id='{}' class='cleantable full-timetable'>"
+              "<thead>\n{}\n</thead>\n{}\n</table>").format(tableID,
+                                               theader, tbody)
+    return(ttable)
+
+
 class TimeTable(Table):
     routeCol = LinkCol("Route", "routeInfo", th_html_attrs={"title": "Route"},
                     url_kwargs=dict(rquery="rname", trip="trip_id"),
@@ -648,6 +771,27 @@ class TripTable(Table):
     classes = ["cleantable"]
 
 
+class SelfAnchorCol(Col):
+    def td_contents(self, item, attr_list):
+        return "<a href='#{}'>{}</a>".format(
+            item["rowid"], attr_list["text"]
+        )
+
+class TimeTableBase(Table):
+    stop_id = LinkCol("Code", "timetable",
+                      url_kwargs=dict(stop="sms"), attr='stop_id')
+    names = Col("Stop")
+    anch = SelfAnchorCol("sdf", attr_list = dict(text="§"),
+                         td_html_attrs = {"class": "ac"})
+    zone = Col("Zone", td_html_attrs = {"class": "centrecol"})
+    
+    def get_tr_attrs(self, item):
+        tratts = {"id": item["rowid"]}
+        if item.get("atp"):
+            tratts.update({"class": "timepoint"})
+        return tratts
+
+
 class VehicleTable(Table):
     routecol = LinkCol("Route", "routeInfo",
                        url_kwargs=dict(rquery="rname"),
@@ -673,10 +817,14 @@ class VehicleTable(Table):
     classes = ["cleantable"]
 
 
+cache = Cache(config={'CACHE_TYPE': 'FileSystemCache',
+                      'CACHE_DIR': '/tmp/RTI-cache/',
+                      'CACHE_THRESHOLD': 50})
 app = Flask(__name__)
 scheduler = APScheduler()
 scheduler.init_app(app)
 scheduler.start()
+cache.init_app(app)
 
 app.apscheduler.add_job(func=updateFeedInfo, trigger="cron", args=[True],
                         minute='11', hour='3', id="ufeedinfo")
@@ -763,7 +911,8 @@ def Search():
 
 @app.route("/stop/<string:stop>/")
 def timetable(stop):
-    req = requests.get(depurl, params={"stop_id": stop}, headers=headers)
+    req = requests.get(depurl, params={"stop_id": stop}, headers=headers,
+                       timeout=20)
     if req.status_code != 200:
         if stop in stopids:
             parent = stopinfo[stopids[stop]]["parent_station"]
@@ -1015,6 +1164,65 @@ def routeInfo(rquery):
                                trips=triptab,
                                routes=sortedRouteCodes(),
                                footer=footerData(), alerts = rel_alerts)
+
+
+@app.route("/timetable/")
+def ttabse():
+    ra = request.args
+    if "r" in ra:
+        return redirect(url_for("routeTimetable", rquery=ra["r"],
+                                date = ra.get("date"), stops = ra.get("stops")), 302, None)
+    else:
+        return redirect("/", 303, None)
+
+
+@app.route("/timetable/<string:rquery>/")
+@cache.cached(timeout=3600, query_string=True)
+def routeTimetable(rquery):
+    if rquery == "" or rquery not in routelist:
+        return redirect("/", 303, None)
+    routeinfo = routelist[rquery]
+    route_name = routeinfo["route_long_name"]
+    ra = request.args
+    tponly = "stops" not in ra or ra["stops"] != "all"
+    todaydate = dt.datetime.now(patz).date()
+    try:
+        ttdate = dt.datetime.strptime(ra["date"], "%Y-%m-%d").date()
+    except:
+        ttdate = todaydate
+    route_trips = [x for x in triplist if x["route_id"] ==
+                   routeinfo["route_id"]]
+    day_trips = [trip for trip in route_trips if
+                 caldates.get(trip_serv.get(trip["trip_id"])) is not None and
+                 ttdate in [cdate.date() for cdate in
+                            caldates.get(trip_serv.get(trip["trip_id"]))]]
+    alldates = [caldates.get(trip_serv.get(trip["trip_id"])) for trip in
+                route_trips if trip_serv.get(trip["trip_id"]) in caldates]
+    alldates = [cdate.date() for tripdays in alldates for cdate in tripdays]
+    alldates = list(set(alldates))
+    alldates.sort()
+    prevdates = [tripday for tripday in alldates if tripday < ttdate]
+    ldate = None if len(prevdates) == 0 else max(prevdates)
+    folldates = [tripday for tripday in alldates if tripday > ttdate]
+    ndate = None if len(folldates) == 0 else min(folldates)
+    # Outbound trips
+    out_trips = [trip for trip in day_trips if trip.get("direction_id") != "1"]
+    out_table = tripTimeTable(out_trips, rquery, "outbound-timetable", tponly)
+    # Inbound trips
+    in_trips = [trip for trip in day_trips if trip.get("direction_id") == "1"]
+    in_table = tripTimeTable(in_trips, rquery, "inbound-timetable", tponly)
+    return render_template("timetable.html", code=rquery,
+                           ttdate=ttdate,
+                           todaydate=todaydate,
+                           name=route_name,
+                           outbound=out_table,
+                           inbound=in_table,
+                           ldate=ldate,
+                           ndate=ndate,
+                           tponly=tponly,
+                           routes=sortedRouteCodes(),
+                           footer=footerData())
+
 
 @app.route("/stop/<string:stop>/nearby/")
 def nearbyStops(stop):

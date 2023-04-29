@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% import "forms.html" as forms %}
+
+{% block header %}
+    <title>{{ code }}: {{ name }} - {% if tponly %}Summary{% else %}Full{% endif %} Timetable - {{ ttdate.strftime("%A %-d %B %Y") }} - RTI Anywhere</title>
+{% endblock header %}
+
+{% block content %}
+    <h1 class="stopinfo">Route {{ code }} - {% if tponly %}Summary{% else %}Full{% endif %} Timetable - {{ ttdate.strftime("%A %-d %B") }}</h1>
+
+    {% if (ldate is defined and ndate is defined and todaydate is defined) and (ldate is not none or ndate is not none or todaydate != ttdate) %}
+    <p id="prevnextlink">{% if ldate is not none %}<a href='/timetable/{{ code }}/?date={{ ldate.strftime("%Y-%m-%d")}}{% if not tponly %}&stops=all{% endif %}'>&lt; Previous Day</a>{% if ndate is not none or todaydate != ttdate %} | {% endif %}{% endif %}{% if todaydate != ttdate %}<a href='/timetable/{{ code }}/?date={{ todaydate.strftime("%Y-%m-%d")}}{% if not tponly %}&stops=all{% endif %}'>Today</a>{% if ndate is not none %} | {% endif %}{% endif %}{% if ndate is not none %}<a href='/timetable/{{ code }}/?date={{ ndate.strftime("%Y-%m-%d")}}{% if not tponly %}&stops=all{% endif %}'>Next Day &gt;</a>{% endif %}</p>
+    {% endif %}
+
+    <p class="routename">{{ name }}</p>
+
+    {% if alerts is defined and alerts is not none and alerts|length > 0 %}
+    <p class="stopalerts"><a href="#alerts">View {{ alerts|length }} service alert{% if alerts|length != 1 %}s{% endif %} for this trip</a></p>
+    {% endif %}
+
+    <p id="inoutlink"><a href="#outbound">Outbound</a>/<a href="#inbound">Inbound</a></p>
+
+    <p id="allstopslink">[<a href="/route/{{ code }}/">All stops associated with route {{ code }}</a>]</p>
+
+    <p id="fullpartiallink">{% if tponly %}<a href='/timetable/{{ code }}/?date={{ ttdate.strftime("%Y-%m-%d") }}&stops=all'>Show full timetable</a>{% else %}<a href='/timetable/{{ code }}/?date={{ ttdate.strftime("%Y-%m-%d") }}'>Show timepoints only</a>{% endif %}</p>
+
+    <hr id="outbound" class="section-divider"/>
+
+    <h1>Outbound</h2>
+    {% if outbound is defined and outbound is not none %}
+    <div class="full-timetable-container">
+        {{ outbound | safe}}
+    </div>
+    {% else %}
+    <p class="no-table">No outbound trips scheduled for route {{ code }} on {{ ttdate.strftime("%B %-d") }} in database.</p>
+    {% endif %}
+
+    <hr id="inbound" class="section-divider"/>
+
+    <h1>Inbound</h2>
+    {% if inbound is defined and inbound is not none %}
+    <div class="full-timetable-container">
+        {{ inbound | safe}}
+    </div>
+    {% else %}
+    <p class="no-table">No inbound trips scheduled for route {{ code }} on {{ ttdate.strftime("%B %-d") }} in database.</p>
+    {% endif %}
+
+
+    {% if alerts is defined and alerts is not none and alerts|length > 0 %}
+        <hr id="alerts" class="section-divider"/>
+
+        <h1 class="stopinfo">Relevant alerts for route {{ code }}</h1>
+
+        {{ forms.alertList(alerts) }}
+    {% endif %}
+
+    <hr class="section-divider"/>
+
+    {{ forms.timetable(routes, code, show_all=not tponly, ttdate=ttdate) }}
+
+{% endblock content %}
+

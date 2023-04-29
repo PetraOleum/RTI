@@ -16,7 +16,7 @@
     {{ forms.stop() }}
 
     {% if routes is not none and routes|length > 0 %}
-        {{ forms.route(routes) }}
+        {{ forms.timetable(routes) }}
     {% endif %}
 
     {{ forms.search() }}
