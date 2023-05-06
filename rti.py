@@ -20,6 +20,7 @@ import pandas as pd
 from numpy import argsort
 from collections import Counter
 from flask_caching import Cache
+from pprint import pprint
 
 depStatus = {
     "onTime": "On time",
@@ -405,13 +406,13 @@ def updatePositions():
                        dictget(entity,
                                        ["vehicle", "trip", "start_date"],
                                        "", True), True),
-                "bearing": dictget(entity, ["vehicle", "vehicle", "bearing"], 0,
+                "bearing": dictget(entity, ["vehicle", "position", "bearing"], 0,
                               True),
-                "lat": dictget(entity, ["vehicle", "vehicle", "latitude"], 0,
+                "lat": dictget(entity, ["vehicle", "position", "latitude"], 0,
                               True),
-                "lon": dictget(entity, ["vehicle", "vehicle", "longitude"], 0,
+                "lon": dictget(entity, ["vehicle", "position", "longitude"], 0,
                               True),
-                "speed": dictget(entity, ["vehicle", "vehicle", "speed"], 0,
+                "speed": dictget(entity, ["vehicle", "position", "speed"], 0,
                               True),
                 "vehicle_id": dictget(entity, ["vehicle", "vehicle", "id"]),
                 "timestamp": dt.datetime.fromtimestamp(
