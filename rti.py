@@ -290,7 +290,7 @@ def loadZipDataset():
     return True
 
 
-def updateFeedInfo(force=False):
+def updateFeedInfo(force=False, force_download=False):
     global feedinfo
     nowtime = dt.datetime.now(patz)
     tstoday = nowtime.strftime("%Y%m%d")
@@ -316,7 +316,8 @@ def updateFeedInfo(force=False):
             return
     # If data file is out of date, redownload it and reload it
     if (zipinfo["feed_start_date"] < feedinfo["feed_start_date"] or
-        zipinfo["feed_end_date"] < feedinfo["feed_end_date"]):
+        zipinfo["feed_end_date"] < feedinfo["feed_end_date"] or
+        force_download):
         print("Old metadata file, downloading")
         if not downloadZipDataset():
             return
@@ -827,7 +828,7 @@ scheduler.init_app(app)
 scheduler.start()
 cache.init_app(app)
 
-app.apscheduler.add_job(func=updateFeedInfo, trigger="cron", args=[True],
+app.apscheduler.add_job(func=updateFeedInfo, trigger="cron", args=[True, True],
                         minute='11', hour='3', id="ufeedinfo")
 app.apscheduler.add_job(func=updateAlerts, trigger="cron", args=[True],
                         minute='*/5', id="ualerts")
